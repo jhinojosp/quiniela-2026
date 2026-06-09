@@ -268,6 +268,133 @@ const Pill=({children,tone="neutral"})=>{
 };
 const stageTone=(r)=>r>=7?"s7":r>=5?"s5":r>=3?"s3":r>=2?"s2":"neutral";
 
+const TEAM_NAME_MAP = {
+  Mexico: "México",
+  "South Africa": "Sudáfrica",
+  France: "Francia",
+  Spain: "España",
+  Argentina: "Argentina",
+  England: "Inglaterra",
+  Portugal: "Portugal",
+  Brazil: "Brasil",
+  Netherlands: "Países Bajos",
+  Morocco: "Marruecos",
+  Belgium: "Bélgica",
+  Germany: "Alemania",
+  Croatia: "Croacia",
+  Colombia: "Colombia",
+  Senegal: "Senegal",
+  "United States": "Estados Unidos",
+  USA: "Estados Unidos",
+  Uruguay: "Uruguay",
+  Japan: "Japón",
+  Switzerland: "Suiza",
+  Iran: "Irán",
+  Turkey: "Turquía",
+  Ecuador: "Ecuador",
+  Austria: "Austria",
+  "South Korea": "Corea del Sur",
+  Australia: "Australia",
+  Algeria: "Argelia",
+  Egypt: "Egipto",
+  Canada: "Canadá",
+  Norway: "Noruega",
+  Panama: "Panamá",
+  "Côte d’Ivoire": "Costa de Marfil",
+  "Cote d'Ivoire": "Costa de Marfil",
+  "Ivory Coast": "Costa de Marfil",
+  Sweden: "Suecia",
+  Paraguay: "Paraguay",
+  Czechia: "República Checa",
+  "Czech Republic": "República Checa",
+  Scotland: "Escocia",
+  Tunisia: "Túnez",
+  "DR Congo": "RD Congo",
+  "Congo DR": "RD Congo",
+  Uzbekistan: "Uzbekistán",
+  Qatar: "Qatar",
+  Iraq: "Irak",
+  "Saudi Arabia": "Arabia Saudita",
+  Jordan: "Jordania",
+  "Bosnia and Herzegovina": "Bosnia y Herzegovina",
+  "Cape Verde": "Cabo Verde",
+  Ghana: "Ghana",
+  Curaçao: "Curazao",
+  Curacao: "Curazao",
+  Haiti: "Haití",
+  "New Zealand": "Nueva Zelanda"
+};
+
+const displayTeam = (name) => {
+  const translated = TEAM_NAME_MAP[name] || name;
+  return teamLabel(translated);
+};
+
+function parseOpenFootballDate(match){
+  if(!match.date || !match.time) return null;
+
+  const parts = String(match.time).match(/^(\d{1,2}):(\d{2})\s+UTC([+-]\d{1,2})$/);
+  if(!parts) return null;
+
+  const hh = parts[1].padStart(2,"0");
+  const mm = parts[2];
+  const offsetHour = parts[3].padStart(3,"0");
+  const offset = `${offsetHour}:00`;
+
+  return new Date(`${match.date}T${hh}:${mm}:00${offset}`);
+}
+
+function formatCDMXDate(match){
+  const d = parseOpenFootballDate(match);
+  if(!d || Number.isNaN(d.getTime())) return match.date || "—";
+
+  return new Intl.DateTimeFormat("es-MX", {
+    timeZone: "America/Mexico_City",
+    weekday: "short",
+    day: "2-digit",
+    month: "short"
+  }).format(d);
+}
+
+function formatCDMXTime(match){
+  const d = parseOpenFootballDate(match);
+  if(!d || Number.isNaN(d.getTime())) return match.time || "—";
+
+  return new Intl.DateTimeFormat("es-MX", {
+    timeZone: "America/Mexico_City",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(d);
+}
+
+function matchScore(match){
+  if(Number.isFinite(match.score1) && Number.isFinite(match.score2)){
+    return `${match.score1} - ${match.score2}`;
+  }
+
+  if(Number.isFinite(match.goals1) && Number.isFinite(match.goals2)){
+    return `${match.goals1} - ${match.goals2}`;
+  }
+
+  if(Array.isArray(match.score) && match.score.length >= 2){
+    return `${match.score[0]} - ${match.score[1]}`;
+  }
+
+  return "vs";
+}
+
+function matchBucket(round){
+  const r = String(round || "").toLowerCase();
+
+  if(r.includes("matchday")) return "grupos";
+  if(r.includes("round of 32")) return "r32";
+  if(r.includes("round of 16")) return "r16";
+  if(r.includes("quarter")) return "cuartos";
+  if(r.includes("semi") || r.includes("final") || r.includes("third")) return "finales";
+
+  return "otros";
+}
+
 const CHART_PHASES = [
   { key:"start", label:"Inicio" },
   { key:"r32", label:"R32" },
@@ -404,6 +531,10 @@ export default function App(){
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState(null);
 
+  const [matches,setMatches]=useState([]);
+  const [matchesLoading,setMatchesLoading]=useState(false);
+  const [matchFilter,setMatchFilter]=useState("todos");
+  
   useEffect(()=>{
     let active=true;
     (async()=>{
@@ -435,6 +566,39 @@ export default function App(){
       setAuthLoading(false);
     });
   
+  useEffect(()=>{
+    let active = true;
+  
+    const loadMatches = async () => {
+      setMatchesLoading(true);
+  
+      try {
+        const response = await fetch("/api/openfootball-worldcup");
+        const data = await response.json();
+  
+        if(!response.ok) throw new Error(data.error || "No se pudieron cargar partidos.");
+  
+        const loadedMatches = data?.data?.matches || [];
+  
+        if(active) {
+          setMatches(loadedMatches);
+        }
+      } catch(e) {
+        if(active) {
+          setError("No se pudieron cargar partidos de OpenFootball: " + (e.message || ""));
+        }
+      } finally {
+        if(active) setMatchesLoading(false);
+      }
+    };
+
+  loadMatches();
+
+  return () => {
+    active = false;
+  };
+},[]);
+    
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -581,6 +745,7 @@ export default function App(){
     ["participantes","Pagos"],
     ["equipos","Equipos"],
     ["resultados","Resultados"],
+    ["partidos","Partidos"],
     ["premios","Premios"],
     ["reglas","Reglas"],
     ["admin",admin?"Admin":"Login"]
@@ -846,7 +1011,88 @@ export default function App(){
             <p className="text-[11px] text-stone-400">   Los puntos se calculan automáticamente con base en el avance de cada equipo. </p>
           </section>
         )}
-
+        {tab==="partidos" && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <h2 className="text-sm font-semibold">Calendario y resultados</h2>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  Horarios en hora de Ciudad de México. Fuente: OpenFootball.
+                </p>
+              </div>
+        
+              <span className="text-[11px] text-stone-400">
+                {matchesLoading ? "Cargando…" : `${matches.length} partidos`}
+              </span>
+            </div>
+        
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {[
+                ["todos","Todos"],
+                ["grupos","Grupos"],
+                ["r32","R32"],
+                ["r16","Octavos"],
+                ["cuartos","Cuartos"],
+                ["finales","Semis / Final"]
+              ].map(([key,label])=>(
+                <button
+                  key={key}
+                  onClick={()=>setMatchFilter(key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                    matchFilter===key
+                      ? "bg-white text-stone-900 shadow-sm ring-1 ring-stone-200/70"
+                      : "text-stone-400 hover:text-stone-600"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+        
+            <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
+              {matches
+                .filter((m)=>matchFilter==="todos" || matchBucket(m.round)===matchFilter)
+                .map((m,idx)=>(
+                  <div key={`${m.num || idx}-${m.date}-${m.team1}-${m.team2}`} className="px-3 sm:px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <Pill tone="neutral">{m.round || "—"}</Pill>
+                          {m.group && <Pill tone="neutral">{m.group}</Pill>}
+                          {m.num && <span className="text-[11px] text-stone-300">Partido {m.num}</span>}
+                        </div>
+        
+                        <div className="text-sm font-medium text-stone-800">
+                          {displayTeam(m.team1)} <span className="text-stone-300 px-1">{matchScore(m)}</span> {displayTeam(m.team2)}
+                        </div>
+        
+                        <div className="text-xs text-stone-400 mt-1">
+                          {m.ground || "Sede por confirmar"}
+                        </div>
+                      </div>
+        
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-medium text-stone-700">{formatCDMXDate(m)}</div>
+                        <div className="text-xs text-stone-400 mt-0.5">{formatCDMXTime(m)}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+        
+              {!matchesLoading && matches.filter((m)=>matchFilter==="todos" || matchBucket(m.round)===matchFilter).length===0 && (
+                <div className="px-4 py-8 text-center text-sm text-stone-400">
+                  No hay partidos para este filtro.
+                </div>
+              )}
+        
+              {matchesLoading && (
+                <div className="px-4 py-8 text-center text-sm text-stone-400">
+                  Cargando calendario…
+                </div>
+              )}
+            </div>
+          </section>
+        )}
         {tab==="premios" && (
           <section className="space-y-4">
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 p-4 sm:p-5 space-y-3">
