@@ -333,13 +333,14 @@ const displayTeam = (name) => {
 function parseOpenFootballDate(match){
   if(!match.date || !match.time) return null;
 
-  const parts = String(match.time).match(/^(\d{1,2}):(\d{2})\s+UTC([+-]\d{1,2})$/);
+  const parts = String(match.time).match(/^(\d{1,2}):(\d{2})\s+UTC([+-])(\d{1,2})$/);
   if(!parts) return null;
 
   const hh = parts[1].padStart(2,"0");
   const mm = parts[2];
-  const offsetHour = parts[3].padStart(3,"0");
-  const offset = `${offsetHour}:00`;
+  const sign = parts[3];
+  const offsetHour = parts[4].padStart(2,"0");
+  const offset = `${sign}${offsetHour}:00`;
 
   return new Date(`${match.date}T${hh}:${mm}:00${offset}`);
 }
@@ -557,40 +558,52 @@ export default function App(){
     return ()=>{ active=false; supabase.removeChannel(channel); };
   },[]);
 
-  useEffect(() => {
-    let mounted = true;
-  
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      setAuthLoading(false);
-    });
-  
-  useEffect(()=>{
-    let active = true;
-  
-    const loadMatches = async () => {
-      setMatchesLoading(true);
-  
-      try {
-        const response = await fetch("/api/openfootball-worldcup");
-        const data = await response.json();
-  
-        if(!response.ok) throw new Error(data.error || "No se pudieron cargar partidos.");
-  
-        const loadedMatches = data?.data?.matches || [];
-  
-        if(active) {
-          setMatches(loadedMatches);
-        }
-      } catch(e) {
-        if(active) {
-          setError("No se pudieron cargar partidos de OpenFootball: " + (e.message || ""));
-        }
-      } finally {
-        if(active) setMatchesLoading(false);
+useEffect(() => {
+  let mounted = true;
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (!mounted) return;
+    setSession(data.session);
+    setAuthLoading(false);
+  });
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+  });
+
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+  };
+}, []);
+
+useEffect(()=>{
+  let active = true;
+
+  const loadMatches = async () => {
+    setMatchesLoading(true);
+
+    try {
+      const response = await fetch("/api/openfootball-worldcup");
+      const data = await response.json();
+
+      if(!response.ok) throw new Error(data.error || "No se pudieron cargar partidos.");
+
+      const loadedMatches = data?.data?.matches || [];
+
+      if(active) {
+        setMatches(loadedMatches);
       }
-    };
+    } catch(e) {
+      if(active) {
+        setError("No se pudieron cargar partidos de OpenFootball: " + (e.message || ""));
+      }
+    } finally {
+      if(active) setMatchesLoading(false);
+    }
+  };
 
   loadMatches();
 
@@ -598,18 +611,6 @@ export default function App(){
     active = false;
   };
 },[]);
-    
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-  
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
 
   const persist=useCallback(async(next)=>{
     setSaving(true);
