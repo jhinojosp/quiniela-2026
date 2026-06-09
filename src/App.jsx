@@ -79,6 +79,9 @@ const SCORING = { reachedR32:1, reachedR16:2, reachedR8:3, reachedSemifinal:4, w
 const ENTRY_FEE = 500;
 const NUM_PARTICIPANTS = 16;
 const IS_OFFICIAL_DRAW = false;
+const RANKING_SOURCE_LABEL = "FIFA/Coca-Cola Men's World Ranking";
+const RANKING_SOURCE_DATE = "1 de abril de 2026";
+const RANKING_SOURCE_URL = "https://inside.fifa.com/fifa-world-ranking/men";
 
 const fmtMXN = (n) => new Intl.NumberFormat("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0}).format(n||0);
 
@@ -199,7 +202,14 @@ function initialState(){
   BOMBO_2.forEach(n=>teams[n]=makeTeam(n,2));
   BOMBO_3.forEach(n=>teams[n]=makeTeam(n,3));
   const participants=Array.from({length:NUM_PARTICIPANTS},(_,i)=>({id:i+1,name:`Participante ${i+1}`,paid:false,b1:null,b2:null,b3:null}));
-  return {participants,teams,prizes:{first:4400,second:2400,third:1200},lastUpdated:null,source:"mock"};
+  return {
+    participants,
+    teams,
+    prizes:{first:4400,second:2400,third:1200},
+    lastUpdated:null,
+    source:"mock",
+    drawLocked:false
+  };
 }
 
 async function fetchWorldCupResults(currentTeams){
@@ -648,6 +658,7 @@ useEffect(()=>{
   const phase=currentPhase(state.teams);
   const lastUpdatedLabel=state.lastUpdated?new Date(state.lastUpdated).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Sin actualizaciones";
   const prizeFor=(rank)=>rank===1?state.prizes.first:rank===2?state.prizes.second:rank===3?state.prizes.third:0;
+  const drawLocked = !!state.drawLocked;
 
   const sourceName =
     state.source === "openfootball" ? "OpenFootball" :
@@ -665,6 +676,10 @@ useEffect(()=>{
     : null;
   
   const sortear=()=>{
+    if(drawLocked){
+      alert("El sorteo está bloqueado. Desbloquéalo en modo Admin si necesitas hacer cambios.");
+      return;
+    }
     const hasDraw=state.participants.some(p=>p.b1||p.b2||p.b3);
     if(hasDraw && !window.confirm("Ya existe un sorteo. ¿Sobrescribir las asignaciones actuales?")) return;
     const shuffle=(arr)=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
@@ -672,10 +687,35 @@ useEffect(()=>{
     update(n=>{n.participants.forEach((p,i)=>{p.b1=s1[i];p.b2=s2[i];p.b3=s3[i];});touchUpdated(n);});
   };
   const limpiarSorteo=()=>{
+    if(drawLocked){
+      alert("El sorteo está bloqueado. Desbloquéalo en modo Admin si necesitas hacer cambios.");
+      return;
+    }
     if(!window.confirm("¿Limpiar el sorteo? Se quitan los equipos asignados; se conservan nombres y pagos.")) return;
     update(n=>{n.participants.forEach(p=>{p.b1=null;p.b2=null;p.b3=null;});touchUpdated(n);});
   };
 
+  const toggleDrawLock=()=>{
+    const nextLocked = !drawLocked;
+  
+    if(nextLocked){
+      const ok = window.confirm(
+        "¿Bloquear el sorteo como oficial? Esto evitará sortear o limpiar equipos por accidente."
+      );
+      if(!ok) return;
+    } else {
+      const ok = window.confirm(
+        "¿Desbloquear el sorteo? Esto permitirá volver a sortear o limpiar equipos."
+      );
+      if(!ok) return;
+    }
+  
+    update(n=>{
+      n.drawLocked = nextLocked;
+      touchUpdated(n);
+    });
+  };
+  
   const actualizarResultados=async()=>{
     setLoadingResults(true);
   
@@ -786,14 +826,18 @@ useEffect(()=>{
             </span>
             <span className="text-stone-300">·</span>
             <span>Act. {lastUpdatedLabel}</span>
-            {!IS_OFFICIAL_DRAW && (
-              <>
-                <span className="text-stone-300">·</span>
+            <>
+              <span className="text-stone-300">·</span>
+              {drawLocked ? (
+                <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                  Sorteo oficial bloqueado
+                </span>
+              ) : (
                 <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-100">
                   Sorteo de prueba
                 </span>
-              </>
-            )}
+              )}
+            </>
           </div>
         </header>
 
@@ -894,11 +938,48 @@ useEffect(()=>{
           <section className="space-y-4">
             {admin
               ? <div className="flex flex-wrap gap-2">
-                  <button onClick={sortear} className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700">Sortear equipos</button>
-                  <button onClick={limpiarSorteo} className="px-3 py-1.5 rounded-lg bg-white text-stone-600 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-50">Limpiar sorteo</button>
+                  <button
+                    onClick={sortear}
+                    disabled={drawLocked}
+                    className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Sortear equipos
+                  </button>
+            
+                  <button
+                    onClick={limpiarSorteo}
+                    disabled={drawLocked}
+                    className="px-3 py-1.5 rounded-lg bg-white text-stone-600 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Limpiar sorteo
+                  </button>
+            
+                  <button
+                    onClick={toggleDrawLock}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium ring-1 ${
+                      drawLocked
+                        ? "bg-emerald-50 text-emerald-700 ring-emerald-100 hover:bg-emerald-100"
+                        : "bg-amber-50 text-amber-700 ring-amber-100 hover:bg-amber-100"
+                    }`}
+                  >
+                    {drawLocked ? "Desbloquear sorteo" : "Bloquear sorteo oficial"}
+                  </button>
                 </div>
               : null}
-            <p className="text-xs text-stone-400">Cada participante recibe un equipo de cada bombo, sin repetir.</p>
+              <div className="text-xs text-stone-400 space-y-1">
+                <p>Cada participante recibe un equipo de cada bombo, sin repetir.</p>
+                <p>
+                  Bombos internos construidos con base en el {RANKING_SOURCE_LABEL} publicado el {RANKING_SOURCE_DATE}.{" "}
+                  <a
+                    href={RANKING_SOURCE_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-stone-600 underline decoration-stone-300 underline-offset-4 hover:text-stone-900"
+                  >
+                    Ver fuente FIFA
+                  </a>
+                </p>
+              </div>
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
               {state.participants.map((p,idx)=>(
                 <div key={p.id} className="px-3 sm:px-4 py-2.5">
@@ -908,8 +989,12 @@ useEffect(()=>{
                       <div key={key}>
                         <div className="text-[10px] text-stone-400 mb-0.5 uppercase tracking-wide">Bombo {n}</div>
                         {admin
-                          ? <select value={p[key]||""} onChange={e=>update(nn=>{nn.participants[idx][key]=e.target.value||null;})}
-                              className="w-full px-1.5 py-1 rounded-md text-xs bg-stone-50 border border-transparent focus:bg-white focus:border-stone-200">
+                          ? <select
+                              value={p[key]||""}
+                              disabled={drawLocked}
+                              onChange={e=>update(nn=>{nn.participants[idx][key]=e.target.value||null;})}
+                              className="w-full px-1.5 py-1 rounded-md text-xs bg-stone-50 border border-transparent focus:bg-white focus:border-stone-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
                               <option value="">—</option>
                               {list.map(t=><option key={t} value={t}>{t}</option>)}
                             </select>
@@ -1154,7 +1239,18 @@ useEffect(()=>{
 
               <div>
                 <h3 className="text-stone-900 font-semibold mb-1.5">Sorteo</h3>
-                <p>Participan 48 selecciones divididas en 3 bombos de 16, según el ranking FIFA del 1 de abril de 2026. Cada quien recibe tres equipos: uno de cada bombo. Así todos tienen un equipo fuerte, uno medio y uno de menor ranking.</p>
+                <p>
+                  Participan 48 selecciones divididas en 3 bombos internos de 16, usando como referencia el {RANKING_SOURCE_LABEL} publicado el {RANKING_SOURCE_DATE}. Cada quien recibe tres equipos: uno de cada bombo. Así todos tienen un equipo fuerte, uno medio y uno de menor ranking.
+                </p>
+                
+                <a
+                  href={RANKING_SOURCE_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex mt-2 text-xs font-medium text-stone-700 underline decoration-stone-300 underline-offset-4 hover:text-stone-900"
+                >
+                  Ver ranking oficial FIFA utilizado como referencia
+                </a>
               </div>
 
               <div>
