@@ -12,7 +12,6 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 const ROW_ID = 1;
-const DEFAULT_PIN = "2026";
 
 const BOMBO_1 = ["Francia","España","Argentina","Inglaterra","Portugal","Brasil","Países Bajos","Marruecos","Bélgica","Alemania","Croacia","Colombia","Senegal","México","Estados Unidos","Uruguay"];
 const BOMBO_2 = ["Japón","Suiza","Irán","Turquía","Ecuador","Austria","Corea del Sur","Australia","Argelia","Egipto","Canadá","Noruega","Panamá","Costa de Marfil","Suecia","Paraguay"];
@@ -21,6 +20,7 @@ const BOMBO_3 = ["República Checa","Escocia","Túnez","RD Congo","Uzbekistán",
 const SCORING = { reachedR32:1, reachedR16:2, reachedR8:3, reachedSemifinal:4, wonThirdPlace:2, reachedFinal:5, champion:6 };
 const ENTRY_FEE = 500;
 const NUM_PARTICIPANTS = 16;
+const IS_OFFICIAL_DRAW = false;
 
 const fmtMXN = (n) => new Intl.NumberFormat("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0}).format(n||0);
 
@@ -254,8 +254,16 @@ export default function App(){
     await supabase.auth.signOut();
     setSession(null);
   };
-  
-  const TABS=[["dashboard","Tabla"],["participantes","Participantes"],["equipos","Sorteo"],["resultados","Resultados"],["premios","Premios"],["reglas","Reglas"],["admin","Admin"]];
+
+  const TABS=[
+    ["dashboard","Tabla"],
+    ["participantes","Pagos"],
+    ["equipos","Equipos"],
+    ["resultados","Resultados"],
+    ["premios","Premios"],
+    ["reglas","Reglas"],
+    ["admin",admin?"Admin":"Login"]
+  ];
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 antialiased" style={{fontFamily:"ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif"}}>
@@ -279,12 +287,20 @@ export default function App(){
               {saving && <span className="text-[11px] text-stone-400">Guardando…</span>}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2 text-xs text-stone-400">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-stone-400">
             <span className="inline-flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>{phase}
             </span>
             <span className="text-stone-300">·</span>
             <span>Act. {lastUpdatedLabel}</span>
+            {!IS_OFFICIAL_DRAW && (
+              <>
+                <span className="text-stone-300">·</span>
+                <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 ring-1 ring-amber-100">
+                  Sorteo de prueba
+                </span>
+              </>
+            )}
           </div>
         </header>
 
@@ -303,7 +319,7 @@ export default function App(){
 
         {tab==="dashboard" && (
           <section className="space-y-5">
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {[["Recaudado",fmtMXN(collected),`${paidCount} de ${NUM_PARTICIPANTS}`],
                 ["Pendiente",fmtMXN(pending),`${unpaidCount} sin pagar`],
                 ["Fase",phase,"actual"]].map(([t,v,s])=>(
@@ -360,7 +376,7 @@ export default function App(){
                 </div>
               ))}
             </div>
-            {!admin && <p className="text-xs text-stone-400">Activa el modo Admin para editar nombres y pagos.</p>}
+            {!admin && <p className="text-xs text-stone-400">Consulta de pagos y participantes.</p>}
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
               {state.participants.map((p,idx)=>(
                 <div key={p.id} className="px-3 sm:px-4 py-2.5 flex items-center gap-3">
@@ -388,13 +404,13 @@ export default function App(){
                   <button onClick={sortear} className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700">Sortear equipos</button>
                   <button onClick={limpiarSorteo} className="px-3 py-1.5 rounded-lg bg-white text-stone-600 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-50">Limpiar sorteo</button>
                 </div>
-              : <p className="text-xs text-stone-400">Activa el modo Admin para sortear o editar asignaciones.</p>}
+              : null}
             <p className="text-xs text-stone-400">Cada participante recibe un equipo de cada bombo, sin repetir.</p>
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
               {state.participants.map((p,idx)=>(
                 <div key={p.id} className="px-3 sm:px-4 py-2.5">
                   <div className="text-sm font-medium mb-1.5">{p.name}</div>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                     {[["b1",BOMBO_1,"1"],["b2",BOMBO_2,"2"],["b3",BOMBO_3,"3"]].map(([key,list,n])=>(
                       <div key={key}>
                         <div className="text-[10px] text-stone-400 mb-0.5 uppercase tracking-wide">Bombo {n}</div>
@@ -417,10 +433,14 @@ export default function App(){
         {tab==="resultados" && (
           <section className="space-y-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <button onClick={actualizarResultados} disabled={loadingResults}
-                className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-40">
-                {loadingResults?"Actualizando…":"Actualizar resultados"}
-              </button>
+              {admin ? (
+                <button onClick={actualizarResultados} disabled={loadingResults}
+                  className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-40">
+                  {loadingResults?"Actualizando…":"Actualizar resultados"}
+                </button>
+              ) : (
+                <span className="text-xs text-stone-400">Avances registrados por el admin.</span>
+              )}
               <span className="text-[11px] text-stone-400">Fuente: {state.source==="api"?"API externa":"datos manuales"}</span>
             </div>
             {admin ? (
@@ -460,7 +480,7 @@ export default function App(){
                 {Object.values(state.teams).every(t=>teamStageRank(t)<=1) && <div className="px-4 py-8 text-center text-sm text-stone-400">Aún no hay avances registrados.</div>}
               </div>
             )}
-            <p className="text-[11px] text-stone-400">El admin captura los avances; los puntos se calculan solos. Listo para conectar una API real de resultados.</p>
+            <p className="text-[11px] text-stone-400">   Los puntos se calculan automáticamente con base en el avance de cada equipo. </p>
           </section>
         )}
 
@@ -490,7 +510,7 @@ export default function App(){
                 </div>
               )}
             </div>
-            {!admin && <p className="text-xs text-stone-400">Activa el modo Admin para editar los montos.</p>}
+            {!admin && <p className="text-xs text-stone-400">Premios definidos para la quiniela.</p>}
           </section>
         )}
 
