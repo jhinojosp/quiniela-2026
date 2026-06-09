@@ -282,6 +282,50 @@ const Pill=({children,tone="neutral"})=>{
 };
 const stageTone=(r)=>r>=7?"s7":r>=5?"s5":r>=3?"s3":r>=2?"s2":"neutral";
 
+function standingsTieKey(row){
+  return row.total + "|" + row.sortedStages.join(",");
+}
+
+function estimatedPrizeForRow(row, standings, prizes){
+  const prizeByPosition = {
+    1: prizes.first,
+    2: prizes.second,
+    3: prizes.third
+  };
+
+  const rowIndex = standings.findIndex(r => r.id === row.id);
+  if(rowIndex === -1) return 0;
+
+  const tieKey = standingsTieKey(row);
+
+  let startIndex = rowIndex;
+  while(
+    startIndex > 0 &&
+    standingsTieKey(standings[startIndex - 1]) === tieKey
+  ){
+    startIndex--;
+  }
+
+  let endIndex = rowIndex;
+  while(
+    endIndex < standings.length - 1 &&
+    standingsTieKey(standings[endIndex + 1]) === tieKey
+  ){
+    endIndex++;
+  }
+
+  let prizePool = 0;
+
+  for(let i = startIndex; i <= endIndex; i++){
+    const position = i + 1;
+    prizePool += prizeByPosition[position] || 0;
+  }
+
+  if(prizePool === 0) return 0;
+
+  return Math.round(prizePool / (endIndex - startIndex + 1));
+}
+
 const TEAM_NAME_MAP = {
   Mexico: "México",
   "South Africa": "Sudáfrica",
@@ -657,7 +701,7 @@ useEffect(()=>{
   const totalPrizes=state.prizes.first+state.prizes.second+state.prizes.third;
   const phase=currentPhase(state.teams);
   const lastUpdatedLabel=state.lastUpdated?new Date(state.lastUpdated).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Sin actualizaciones";
-  const prizeFor=(rank)=>rank===1?state.prizes.first:rank===2?state.prizes.second:rank===3?state.prizes.third:0;
+  const hasAssignedTeams = state.participants.some(p => p.b1 || p.b2 || p.b3);
   const drawLocked = !!state.drawLocked;
 
   const sourceName =
@@ -871,7 +915,7 @@ useEffect(()=>{
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden">
               <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Clasificación</h2>
-                <span className="text-[11px] text-stone-400">Puntos por avance</span>
+                <span className="text-[11px] text-stone-400">Premio estimado</span>
               </div>
               <ol className="divide-y divide-stone-50">
                 {standings.map((r)=>{
@@ -892,7 +936,13 @@ useEffect(()=>{
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-base font-semibold tabular-nums leading-none">{r.total}</div>
-                        {podium && <div className="mt-1"><Pill tone="prize">{fmtMXN(prizeFor(r.rank))}</Pill></div>}
+                        {hasAssignedTeams && estimatedPrizeForRow(r, standings, state.prizes) > 0 && (
+                            <div className="mt-1">
+                              <Pill tone="prize">
+                                {fmtMXN(estimatedPrizeForRow(r, standings, state.prizes))}
+                              </Pill>
+                            </div>
+                          )}
                       </div>
                     </li>
                   );
