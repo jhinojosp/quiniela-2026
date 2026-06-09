@@ -93,16 +93,88 @@ function teamPoints(t){
   return p;
 }
 
-function teamStageRank(t){
-  if(!t) return 0;
-  if(t.champion) return 7;
-  if(t.reachedFinal) return 6;
-  if(t.reachedSemifinal) return 5;
-  if(t.reachedR8) return 4;
-  if(t.reachedR16) return 3;
-  if(t.reachedR32) return 2;
-  return 1;
+function normalizeTeamProgress(t, changedKey, checked){
+  t[changedKey] = checked;
+
+  if(checked){
+    if(["reachedR32","reachedR16","reachedR8","reachedSemifinal","wonThirdPlace","reachedFinal","champion"].includes(changedKey)){
+      t.reachedR32 = true;
+    }
+    if(["reachedR16","reachedR8","reachedSemifinal","wonThirdPlace","reachedFinal","champion"].includes(changedKey)){
+      t.reachedR16 = true;
+    }
+    if(["reachedR8","reachedSemifinal","wonThirdPlace","reachedFinal","champion"].includes(changedKey)){
+      t.reachedR8 = true;
+    }
+    if(["reachedSemifinal","wonThirdPlace","reachedFinal","champion"].includes(changedKey)){
+      t.reachedSemifinal = true;
+    }
+    if(changedKey === "champion"){
+      t.reachedFinal = true;
+    }
+  }
+
+  if(!checked){
+    if(changedKey === "reachedR32"){
+      t.reachedR16 = false;
+      t.reachedR8 = false;
+      t.reachedSemifinal = false;
+      t.wonThirdPlace = false;
+      t.reachedFinal = false;
+      t.champion = false;
+    }
+    if(changedKey === "reachedR16"){
+      t.reachedR8 = false;
+      t.reachedSemifinal = false;
+      t.wonThirdPlace = false;
+      t.reachedFinal = false;
+      t.champion = false;
+    }
+    if(changedKey === "reachedR8"){
+      t.reachedSemifinal = false;
+      t.wonThirdPlace = false;
+      t.reachedFinal = false;
+      t.champion = false;
+    }
+    if(changedKey === "reachedSemifinal"){
+      t.wonThirdPlace = false;
+      t.reachedFinal = false;
+      t.champion = false;
+    }
+    if(changedKey === "reachedFinal"){
+      t.champion = false;
+    }
+  }
+
+  if(t.champion){
+    t.reachedFinal = true;
+    t.reachedSemifinal = true;
+    t.reachedR8 = true;
+    t.reachedR16 = true;
+    t.reachedR32 = true;
+    t.wonThirdPlace = false;
+  }
+
+  if(t.reachedFinal){
+    t.reachedSemifinal = true;
+    t.reachedR8 = true;
+    t.reachedR16 = true;
+    t.reachedR32 = true;
+    t.wonThirdPlace = false;
+  }
+
+  if(t.wonThirdPlace){
+    t.reachedSemifinal = true;
+    t.reachedR8 = true;
+    t.reachedR16 = true;
+    t.reachedR32 = true;
+    t.reachedFinal = false;
+    t.champion = false;
+  }
+
+  return t;
 }
+
 const STAGE_LABEL={7:"Campeón",6:"Final",5:"Semifinal",4:"Cuartos",3:"Octavos",2:"Ronda de 32",1:"Fase de grupos"};
 const STAGE_SHORT={7:"Campeón",6:"Final",5:"Semi",4:"Cuartos",3:"Octavos",2:"R32",1:"Grupos"};
 
@@ -395,6 +467,21 @@ export default function App(){
   const lastUpdatedLabel=state.lastUpdated?new Date(state.lastUpdated).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Sin actualizaciones";
   const prizeFor=(rank)=>rank===1?state.prizes.first:rank===2?state.prizes.second:rank===3?state.prizes.third:0;
 
+  const sourceName =
+    state.source === "openfootball" ? "OpenFootball" :
+    state.source === "api" ? "API externa" :
+    "Datos manuales";
+  
+  const sourceMeta = state.sourceMeta || {};
+  const sourceFetchedLabel = sourceMeta.fetchedAt
+    ? new Date(sourceMeta.fetchedAt).toLocaleString("es-MX", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    : null;
+  
   const sortear=()=>{
     const hasDraw=state.participants.some(p=>p.b1||p.b2||p.b3);
     if(hasDraw && !window.confirm("Ya existe un sorteo. ¿Sobrescribir las asignaciones actuales?")) return;
@@ -585,7 +672,7 @@ export default function App(){
                 })}
               </ol>
             </div>
-            <p className="text-[11px] text-stone-400 text-center">Fuente: {state.source==="api"?"API externa":"datos manuales"}</p>
+            <p className="text-[11px] text-stone-400 text-center">Fuente: {sourceName}</p>
           </section>
         )}
 
@@ -665,9 +752,42 @@ export default function App(){
                 <span className="text-xs text-stone-400">Avances registrados por el admin.</span>
               )}
               <span className="text-[11px] text-stone-400">
-                Fuente: {state.source==="openfootball"?"OpenFootball":state.source==="api"?"API externa":"datos manuales"}
+                Fuente: {sourceName}
               </span>
             </div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                <div className="bg-white rounded-xl ring-1 ring-stone-200/70 p-3">
+                  <div className="text-[11px] text-stone-400 uppercase tracking-wide">Fuente</div>
+                  <div className="text-sm font-semibold mt-1">{sourceName}</div>
+                </div>
+              
+                <div className="bg-white rounded-xl ring-1 ring-stone-200/70 p-3">
+                  <div className="text-[11px] text-stone-400 uppercase tracking-wide">Partidos</div>
+                  <div className="text-sm font-semibold mt-1">
+                    {sourceMeta.matchCount ?? "—"}
+                  </div>
+                </div>
+              
+                <div className="bg-white rounded-xl ring-1 ring-stone-200/70 p-3">
+                  <div className="text-[11px] text-stone-400 uppercase tracking-wide">Con score</div>
+                  <div className="text-sm font-semibold mt-1">
+                    {sourceMeta.completedWithScore ?? "—"}
+                  </div>
+                </div>
+              
+                <div className="bg-white rounded-xl ring-1 ring-stone-200/70 p-3">
+                  <div className="text-[11px] text-stone-400 uppercase tracking-wide">Consulta</div>
+                  <div className="text-sm font-semibold mt-1">
+                    {sourceFetchedLabel || "—"}
+                  </div>
+                </div>
+              </div>
+              
+              {sourceMeta.note && (
+                <div className="text-xs bg-stone-100 text-stone-500 px-3 py-2 rounded-lg ring-1 ring-stone-200/70">
+                  {sourceMeta.note}
+                </div>
+              )}
             {admin ? (
               <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-x-auto">
                 <table className="w-full text-xs">
@@ -682,8 +802,15 @@ export default function App(){
                         <td className="px-3 py-1.5 whitespace-nowrap">{teamLabel(t.team)}</td><td className="px-1 py-1.5 text-center text-stone-400">{t.pot}</td>
                         {["reachedR32","reachedR16","reachedR8","reachedSemifinal","wonThirdPlace","reachedFinal","champion"].map(k=>(
                           <td key={k} className="px-1 py-1.5 text-center">
-                            <input type="checkbox" checked={t[k]} onChange={e=>update(n=>{n.teams[t.team][k]=e.target.checked;touchUpdated(n);})} className="w-3.5 h-3.5 accent-stone-700" />
-                          </td>
+                            <input
+                              type="checkbox"
+                              checked={t[k]}
+                              onChange={e=>update(n=>{
+                                normalizeTeamProgress(n.teams[t.team], k, e.target.checked);
+                                touchUpdated(n);
+                              })}
+                              className="w-3.5 h-3.5 accent-stone-700"
+                            />                          </td>
                         ))}
                         <td className="px-2 py-1.5 text-center font-semibold tabular-nums">{teamPoints(t)}</td>
                       </tr>
