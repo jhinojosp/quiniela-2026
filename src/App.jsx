@@ -17,6 +17,60 @@ const BOMBO_1 = ["Francia","España","Argentina","Inglaterra","Portugal","Brasil
 const BOMBO_2 = ["Japón","Suiza","Irán","Turquía","Ecuador","Austria","Corea del Sur","Australia","Argelia","Egipto","Canadá","Noruega","Panamá","Costa de Marfil","Suecia","Paraguay"];
 const BOMBO_3 = ["República Checa","Escocia","Túnez","RD Congo","Uzbekistán","Qatar","Irak","Sudáfrica","Arabia Saudita","Jordania","Bosnia y Herzegovina","Cabo Verde","Ghana","Curazao","Haití","Nueva Zelanda"];
 
+const FLAGS = {
+  "Francia":"🇫🇷",
+  "España":"🇪🇸",
+  "Argentina":"🇦🇷",
+  "Inglaterra":"🏴",
+  "Portugal":"🇵🇹",
+  "Brasil":"🇧🇷",
+  "Países Bajos":"🇳🇱",
+  "Marruecos":"🇲🇦",
+  "Bélgica":"🇧🇪",
+  "Alemania":"🇩🇪",
+  "Croacia":"🇭🇷",
+  "Colombia":"🇨🇴",
+  "Senegal":"🇸🇳",
+  "México":"🇲🇽",
+  "Estados Unidos":"🇺🇸",
+  "Uruguay":"🇺🇾",
+  "Japón":"🇯🇵",
+  "Suiza":"🇨🇭",
+  "Irán":"🇮🇷",
+  "Turquía":"🇹🇷",
+  "Ecuador":"🇪🇨",
+  "Austria":"🇦🇹",
+  "Corea del Sur":"🇰🇷",
+  "Australia":"🇦🇺",
+  "Argelia":"🇩🇿",
+  "Egipto":"🇪🇬",
+  "Canadá":"🇨🇦",
+  "Noruega":"🇳🇴",
+  "Panamá":"🇵🇦",
+  "Costa de Marfil":"🇨🇮",
+  "Suecia":"🇸🇪",
+  "Paraguay":"🇵🇾",
+  "República Checa":"🇨🇿",
+  "Escocia":"🏴",
+  "Túnez":"🇹🇳",
+  "RD Congo":"🇨🇩",
+  "Uzbekistán":"🇺🇿",
+  "Qatar":"🇶🇦",
+  "Irak":"🇮🇶",
+  "Sudáfrica":"🇿🇦",
+  "Arabia Saudita":"🇸🇦",
+  "Jordania":"🇯🇴",
+  "Bosnia y Herzegovina":"🇧🇦",
+  "Cabo Verde":"🇨🇻",
+  "Ghana":"🇬🇭",
+  "Curazao":"🇨🇼",
+  "Haití":"🇭🇹",
+  "Nueva Zelanda":"🇳🇿"
+};
+
+const flagOf = (team) => FLAGS[team] || "🏳️";
+const teamLabel = (team) => team ? `${flagOf(team)} ${team}` : "—";
+
 const SCORING = { reachedR32:1, reachedR16:2, reachedR8:3, reachedSemifinal:4, wonThirdPlace:2, reachedFinal:5, champion:6 };
 const ENTRY_FEE = 500;
 const NUM_PARTICIPANTS = 16;
@@ -104,6 +158,129 @@ const Pill=({children,tone="neutral"})=>{
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium tracking-tight ${tones[tone]}`}>{children}</span>;
 };
 const stageTone=(r)=>r>=7?"s7":r>=5?"s5":r>=3?"s3":r>=2?"s2":"neutral";
+
+const CHART_PHASES = [
+  { key:"start", label:"Inicio" },
+  { key:"r32", label:"R32" },
+  { key:"r16", label:"Octavos" },
+  { key:"r8", label:"Cuartos" },
+  { key:"semi", label:"Semi" },
+  { key:"final", label:"Final/3°" },
+  { key:"champion", label:"Campeón" }
+];
+
+function teamPointsThroughPhase(t, phaseKey){
+  if(!t) return 0;
+  let p = 0;
+
+  if(["r32","r16","r8","semi","final","champion"].includes(phaseKey) && t.reachedR32) p += SCORING.reachedR32;
+  if(["r16","r8","semi","final","champion"].includes(phaseKey) && t.reachedR16) p += SCORING.reachedR16;
+  if(["r8","semi","final","champion"].includes(phaseKey) && t.reachedR8) p += SCORING.reachedR8;
+  if(["semi","final","champion"].includes(phaseKey) && t.reachedSemifinal) p += SCORING.reachedSemifinal;
+  if(["final","champion"].includes(phaseKey) && t.wonThirdPlace) p += SCORING.wonThirdPlace;
+  if(["final","champion"].includes(phaseKey) && t.reachedFinal) p += SCORING.reachedFinal;
+  if(phaseKey==="champion" && t.champion) p += SCORING.champion;
+
+  return p;
+}
+
+function participantPointsThroughPhase(p, teams, phaseKey){
+  return [p.b1,p.b2,p.b3].reduce((sum, teamName) => {
+    return sum + teamPointsThroughPhase(teams[teamName], phaseKey);
+  }, 0);
+}
+
+function LeaderboardChart({ standings, teams }){
+  const topRows = standings.slice(0, 8);
+  const width = 720;
+  const height = 260;
+  const pad = { top: 18, right: 18, bottom: 34, left: 34 };
+  const chartW = width - pad.left - pad.right;
+  const chartH = height - pad.top - pad.bottom;
+
+  const series = topRows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    values: CHART_PHASES.map((phase) => participantPointsThroughPhase(p, teams, phase.key)),
+  }));
+
+  const maxValue = Math.max(1, ...series.flatMap(s => s.values));
+  const roundedMax = Math.max(5, Math.ceil(maxValue / 5) * 5);
+
+  const xFor = (idx) => pad.left + (idx / (CHART_PHASES.length - 1)) * chartW;
+  const yFor = (value) => pad.top + chartH - (value / roundedMax) * chartH;
+
+  const colors = ["#292524","#78716c","#a16207","#166534","#1d4ed8","#7c3aed","#be123c","#0f766e"];
+
+  if(series.length === 0){
+    return null;
+  }
+
+  return (
+    <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden">
+      <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">Evolución por fase</h2>
+          <p className="text-[11px] text-stone-400 mt-0.5">Top 8 actual para mantener la gráfica legible.</p>
+        </div>
+        <span className="text-[11px] text-stone-400">Puntos acumulados</span>
+      </div>
+
+      <div className="p-3 overflow-x-auto">
+        <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[620px] w-full h-auto">
+          {[0,0.25,0.5,0.75,1].map((t,i)=>{
+            const y = pad.top + chartH * t;
+            const value = Math.round(roundedMax * (1 - t));
+            return (
+              <g key={i}>
+                <line x1={pad.left} x2={width-pad.right} y1={y} y2={y} stroke="#f5f5f4" />
+                <text x={pad.left-8} y={y+4} textAnchor="end" fontSize="10" fill="#a8a29e">{value}</text>
+              </g>
+            );
+          })}
+
+          {CHART_PHASES.map((phase,idx)=>(
+            <g key={phase.key}>
+              <text x={xFor(idx)} y={height-10} textAnchor="middle" fontSize="10" fill="#a8a29e">{phase.label}</text>
+            </g>
+          ))}
+
+          {series.map((s,si)=>{
+            const points = s.values.map((v,idx)=>`${xFor(idx)},${yFor(v)}`).join(" ");
+            return (
+              <g key={s.id}>
+                <polyline
+                  points={points}
+                  fill="none"
+                  stroke={colors[si % colors.length]}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity="0.9"
+                />
+                {s.values.map((v,idx)=>(
+                  <circle key={idx} cx={xFor(idx)} cy={yFor(v)} r="3" fill={colors[si % colors.length]} />
+                ))}
+              </g>
+            );
+          })}
+        </svg>
+
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+          {series.map((s,si)=>(
+            <div key={s.id} className="flex items-center justify-between gap-2 text-xs">
+              <div className="min-w-0 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{backgroundColor:colors[si % colors.length]}}></span>
+                <span className="truncate text-stone-600">{s.name}</span>
+              </div>
+              <span className="tabular-nums font-medium text-stone-800">{s.values[s.values.length-1]} pts</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App(){
   const [state,setState]=useState(null);
@@ -330,7 +507,7 @@ export default function App(){
                 </div>
               ))}
             </div>
-
+            <LeaderboardChart standings={standings} teams={state.teams} />
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden">
               <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
                 <h2 className="text-sm font-semibold">Clasificación</h2>
@@ -349,7 +526,7 @@ export default function App(){
                         </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {[r.t1,r.t2,r.t3].map((t,i)=>t
-                            ? <Pill key={i} tone={stageTone(teamStageRank(t))}>{t.team} · {teamPoints(t)}</Pill>
+                            ? <Pill key={i} tone={stageTone(teamStageRank(t))}>{teamLabel(t.team)} · {teamPoints(t)}</Pill>
                             : <Pill key={i} tone="neutral">—</Pill>)}
                         </div>
                       </div>
@@ -420,7 +597,7 @@ export default function App(){
                               <option value="">—</option>
                               {list.map(t=><option key={t} value={t}>{t}</option>)}
                             </select>
-                          : <div className="text-xs px-1.5 py-1 rounded-md bg-stone-50 truncate">{p[key]||"—"}</div>}
+                          : <div className="text-xs px-1.5 py-1 rounded-md bg-stone-50 truncate">{teamLabel(p[key])}</div>}
                       </div>
                     ))}
                   </div>
@@ -454,7 +631,7 @@ export default function App(){
                   <tbody className="divide-y divide-stone-50">
                     {Object.values(state.teams).sort((a,b)=>a.pot-b.pot||a.team.localeCompare(b.team)).map(t=>(
                       <tr key={t.team} className="hover:bg-stone-50/60">
-                        <td className="px-3 py-1.5 whitespace-nowrap">{t.team}</td><td className="px-1 py-1.5 text-center text-stone-400">{t.pot}</td>
+                        <td className="px-3 py-1.5 whitespace-nowrap">{teamLabel(t.team)}</td><td className="px-1 py-1.5 text-center text-stone-400">{t.pot}</td>
                         {["reachedR32","reachedR16","reachedR8","reachedSemifinal","wonThirdPlace","reachedFinal","champion"].map(k=>(
                           <td key={k} className="px-1 py-1.5 text-center">
                             <input type="checkbox" checked={t[k]} onChange={e=>update(n=>{n.teams[t.team][k]=e.target.checked;touchUpdated(n);})} className="w-3.5 h-3.5 accent-stone-700" />
@@ -470,7 +647,7 @@ export default function App(){
               <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
                 {Object.values(state.teams).filter(t=>teamStageRank(t)>1).sort((a,b)=>teamStageRank(b)-teamStageRank(a)).map(t=>(
                   <div key={t.team} className="px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-sm">{t.team}</span>
+                    <span className="text-sm">{teamLabel(t.team)}</span>
                     <div className="flex items-center gap-2">
                       <Pill tone={stageTone(teamStageRank(t))}>{STAGE_SHORT[teamStageRank(t)]}</Pill>
                       <span className="text-sm font-semibold tabular-nums w-5 text-right">{teamPoints(t)}</span>
@@ -568,7 +745,7 @@ export default function App(){
                   {[["Bombo 1",BOMBO_1],["Bombo 2",BOMBO_2],["Bombo 3",BOMBO_3]].map(([t,list])=>(
                     <div key={t}>
                       <div className="text-xs text-stone-400 mb-1">{t}</div>
-                      <div className="flex flex-wrap gap-1">{list.map(n=><Pill key={n} tone="neutral">{n}</Pill>)}</div>
+                      <div className="flex flex-wrap gap-1">{list.map(n=><Pill key={n} tone="neutral">{teamLabel(n)}</Pill>)}</div>
                     </div>
                   ))}
                 </div>
