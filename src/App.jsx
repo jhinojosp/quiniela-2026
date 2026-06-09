@@ -93,6 +93,17 @@ function teamPoints(t){
   return p;
 }
 
+function teamStageRank(t){
+  if(!t) return 0;
+  if(t.champion) return 7;
+  if(t.reachedFinal) return 6;
+  if(t.reachedSemifinal) return 5;
+  if(t.reachedR8) return 4;
+  if(t.reachedR16) return 3;
+  if(t.reachedR32) return 2;
+  return 1;
+}
+
 function normalizeTeamProgress(t, changedKey, checked){
   t[changedKey] = checked;
 
