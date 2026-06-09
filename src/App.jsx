@@ -116,8 +116,34 @@ function initialState(){
 }
 
 async function fetchWorldCupResults(currentTeams){
-  // Producción: reemplazar por fetch a una API de futbol y mapear a la estructura interna.
-  return new Promise(res=>setTimeout(()=>res({source:"mock",teams:currentTeams}),400));
+  const response = await fetch("/api/openfootball-progress");
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "No se pudo actualizar desde OpenFootball.");
+  }
+
+  const nextTeams = structuredClone(currentTeams);
+
+  Object.entries(data.progress || {}).forEach(([teamName, progress]) => {
+    if (!nextTeams[teamName]) return;
+
+    nextTeams[teamName] = {
+      ...nextTeams[teamName],
+      ...progress
+    };
+  });
+
+  return {
+    source: "openfootball",
+    teams: nextTeams,
+    meta: {
+      fetchedAt: data.fetchedAt,
+      matchCount: data.matchCount,
+      completedWithScore: data.completedWithScore,
+      note: data.note
+    }
+  };
 }
 
 function currentPhase(teams){
@@ -380,12 +406,32 @@ export default function App(){
     if(!window.confirm("¿Limpiar el sorteo? Se quitan los equipos asignados; se conservan nombres y pagos.")) return;
     update(n=>{n.participants.forEach(p=>{p.b1=null;p.b2=null;p.b3=null;});touchUpdated(n);});
   };
+
   const actualizarResultados=async()=>{
     setLoadingResults(true);
-    const res=await fetchWorldCupResults(state.teams);
-    update(n=>{n.teams={...n.teams,...res.teams};n.source=res.source;touchUpdated(n);});
-    setLoadingResults(false);
+  
+    try {
+      const res = await fetchWorldCupResults(state.teams);
+  
+      update(n=>{
+        n.teams = res.teams;
+        n.source = res.source;
+        n.sourceMeta = res.meta;
+        touchUpdated(n);
+      });
+  
+      if (res.meta?.completedWithScore === 0) {
+        setError("OpenFootball está conectado, pero todavía no tiene resultados capturados. No se cambiaron puntos.");
+      } else {
+        setError(null);
+      }
+    } catch (e) {
+      setError("No se pudo actualizar resultados: " + (e.message || ""));
+    } finally {
+      setLoadingResults(false);
+    }
   };
+  
   const exportar=()=>{
     const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
@@ -618,7 +664,9 @@ export default function App(){
               ) : (
                 <span className="text-xs text-stone-400">Avances registrados por el admin.</span>
               )}
-              <span className="text-[11px] text-stone-400">Fuente: {state.source==="api"?"API externa":"datos manuales"}</span>
+              <span className="text-[11px] text-stone-400">
+                Fuente: {state.source==="openfootball"?"OpenFootball":state.source==="api"?"API externa":"datos manuales"}
+              </span>
             </div>
             {admin ? (
               <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-x-auto">
