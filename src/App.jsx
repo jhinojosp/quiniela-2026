@@ -108,8 +108,12 @@ const stageTone=(r)=>r>=7?"s7":r>=5?"s5":r>=3?"s3":r>=2?"s2":"neutral";
 export default function App(){
   const [state,setState]=useState(null);
   const [tab,setTab]=useState("dashboard");
-  const [admin,setAdmin]=useState(false);
-  const [pinInput,setPinInput]=useState("");
+  const [session, setSession] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
+  
+  const admin = !!session?.user;
   const [loadingResults,setLoadingResults]=useState(false);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState(null);
@@ -135,6 +139,27 @@ export default function App(){
       .subscribe();
     return ()=>{ active=false; supabase.removeChannel(channel); };
   },[]);
+
+  useEffect(() => {
+    let mounted = true;
+  
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+  
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+  
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const persist=useCallback(async(next)=>{
     setSaving(true);
@@ -197,8 +222,39 @@ export default function App(){
     reader.readAsText(file);
   };
   const reiniciar=()=>{ if(window.confirm("¿Reiniciar toda la quiniela? Se borran participantes, sorteo, pagos y resultados.")){const fresh=initialState();setState(fresh);persist(fresh);} };
-  const tryPin=()=>{ if(pinInput===DEFAULT_PIN){setAdmin(true);setPinInput("");}else alert("PIN incorrecto."); };
 
+  const loginAdmin = async () => {
+    if (!email || !password) {
+      alert("Escribe tu email y contraseña.");
+      return;
+    }
+  
+    setSaving(true);
+  
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+  
+      if (error) throw error;
+  
+      setSession(data.session);
+      setEmail("");
+      setPassword("");
+      setError(null);
+    } catch (e) {
+      setError("No se pudo iniciar sesión: " + (e.message || ""));
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  const logoutAdmin = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+  
   const TABS=[["dashboard","Tabla"],["participantes","Participantes"],["equipos","Sorteo"],["resultados","Resultados"],["premios","Premios"],["reglas","Reglas"],["admin","Admin"]];
 
   return (
@@ -502,28 +558,89 @@ export default function App(){
         )}
 
         {tab==="admin" && (
-          <section className="space-y-3 max-w-md">
-            <div className="bg-white rounded-xl ring-1 ring-stone-200/70 p-4 space-y-3">
-              <h3 className="text-sm font-semibold">Modo administrador</h3>
-              {admin
-                ? <button onClick={()=>setAdmin(false)} className="px-3 py-1.5 rounded-lg bg-white text-stone-600 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-50">Salir del modo admin</button>
-                : <div className="flex gap-2">
-                    <input type="password" value={pinInput} onChange={e=>setPinInput(e.target.value)} placeholder="PIN"
-                      className="px-2.5 py-1.5 rounded-lg text-sm bg-stone-50 border border-transparent focus:bg-white focus:border-stone-200 w-28" />
-                    <button onClick={tryPin} className="px-3 py-1.5 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700">Entrar</button>
-                  </div>}
-              <p className="text-[11px] text-stone-400">Prototipo: el PIN local no es seguridad real. Para uso público final, migrar a autenticación con Supabase/Firebase.</p>
+          <section className="space-y-6">
+            <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4">
+              <h3 className="text-base font-semibold text-stone-900">Modo administrador</h3>
+        
+              {admin ? (
+                <div className="mt-3 space-y-3">
+                  <p className="text-sm text-stone-600">
+                    Sesión iniciada como admin: {session.user.email}
+                  </p>
+        
+                  <button
+                    onClick={logoutAdmin}
+                    className="px-3 py-1.5 rounded-lg bg-white text-stone-600 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-50"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-3 grid gap-2 max-w-sm">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email admin"
+                    className="px-3 py-2 rounded-lg text-sm bg-stone-50 border border-stone-200 focus:bg-white"
+                  />
+        
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Contraseña"
+                    className="px-3 py-2 rounded-lg text-sm bg-stone-50 border border-stone-200 focus:bg-white"
+                  />
+        
+                  <button
+                    onClick={loginAdmin}
+                    disabled={saving || authLoading}
+                    className="px-3 py-2 rounded-lg bg-stone-900 text-white text-sm font-medium disabled:opacity-50"
+                  >
+                    {saving ? "Entrando..." : "Entrar como admin"}
+                  </button>
+                </div>
+              )}
+        
+              <p className="mt-4 text-xs text-stone-500">
+                Todos pueden ver la quiniela. Solo el usuario admin autenticado en Supabase puede guardar cambios.
+              </p>
             </div>
-            <div className="bg-white rounded-xl ring-1 ring-stone-200/70 p-4 space-y-2.5">
-              <h3 className="text-sm font-semibold">Datos</h3>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={exportar} className="px-3 py-1.5 rounded-lg bg-stone-50 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-100">Exportar JSON</button>
-                <label className="px-3 py-1.5 rounded-lg bg-stone-50 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-100 cursor-pointer">
-                  Importar JSON<input type="file" accept="application/json" onChange={importar} className="hidden" />
-                </label>
-                {admin && <button onClick={reiniciar} className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 text-sm font-medium ring-1 ring-rose-100 hover:bg-rose-100">Reiniciar</button>}
+        
+            <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4">
+              <h3 className="text-base font-semibold text-stone-900">Datos</h3>
+        
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={exportar}
+                  className="px-3 py-1.5 rounded-lg bg-white text-stone-600 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-50"
+                >
+                  Exportar JSON
+                </button>
+        
+                {admin && (
+                  <>
+                    <label className="px-3 py-1.5 rounded-lg bg-white text-stone-600 text-sm font-medium ring-1 ring-stone-200 hover:bg-stone-50 cursor-pointer">
+                      Importar JSON
+                      <input type="file" accept="application/json" onChange={importar} className="hidden" />
+                    </label>
+        
+                    <button
+                      onClick={reiniciar}
+                      className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-sm font-medium ring-1 ring-rose-100 hover:bg-rose-100"
+                    >
+                      Reiniciar
+                    </button>
+                  </>
+                )}
               </div>
-              {!admin && <p className="text-[11px] text-stone-400">Reiniciar requiere modo admin.</p>}
+        
+              {!admin && (
+                <p className="mt-3 text-xs text-stone-500">
+                  Importar y reiniciar requieren sesión admin.
+                </p>
+              )}
             </div>
           </section>
         )}
