@@ -188,6 +188,12 @@ export default function App(){
     update(n=>{n.participants.forEach((p,i)=>{p.b1=s1[i];p.b2=s2[i];p.b3=s3[i];});touchUpdated(n);});
   };
 
+  const limpiarSorteo=()=>{
+    // Borra solo las asignaciones de equipos. No toca nombres ni pagos.
+    if(!window.confirm("¿Limpiar el sorteo? Se quitarán los equipos asignados, pero se conservan nombres y pagos.")) return;
+    update(n=>{n.participants.forEach(p=>{p.b1=null;p.b2=null;p.b3=null;});touchUpdated(n);});
+  };
+
   const actualizarResultados=async()=>{
     setLoadingResults(true);
     const res=await fetchWorldCupResults(state.teams);
@@ -280,7 +286,18 @@ export default function App(){
                     <tr key={p.id} className="border-t border-slate-100">
                       <td className="p-2">{idx+1}</td>
                       <td className="p-2"><input disabled={!admin} value={p.name} onChange={e=>update(n=>{n.participants[idx].name=e.target.value;})} className="w-full px-2 py-1 rounded border border-slate-200 disabled:bg-slate-50 disabled:text-slate-500" /></td>
-                      <td className="p-2 text-center"><input type="checkbox" disabled={!admin} checked={p.paid} onChange={e=>update(n=>{n.participants[idx].paid=e.target.checked;})} className="w-4 h-4" /></td>
+                      <td className="p-2 text-center">
+                        {admin ? (
+                          <button
+                            onClick={()=>update(n=>{n.participants[idx].paid=!n.participants[idx].paid;})}
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${p.paid?"bg-emerald-100 text-emerald-700 hover:bg-emerald-200":"bg-rose-100 text-rose-700 hover:bg-rose-200"}`}
+                          >
+                            {p.paid?"Pagado":"Pendiente"}
+                          </button>
+                        ) : (
+                          p.paid?<Badge color="green">Pagado</Badge>:<Badge color="red">Pendiente</Badge>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -295,6 +312,7 @@ export default function App(){
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               {admin && <button onClick={sortear} className="px-3 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium">Sortear equipos</button>}
+              {admin && <button onClick={limpiarSorteo} className="px-3 py-2 rounded-lg bg-rose-100 text-rose-700 text-sm font-medium">Limpiar sorteo</button>}
               <span className="text-xs text-slate-500">Cada participante recibe 1 equipo de cada bombo, sin duplicados.</span>
             </div>
             <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
