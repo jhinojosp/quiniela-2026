@@ -75,7 +75,22 @@ const FLAGS = {
 const flagOf = (team) => FLAGS[team] || "🏳️";
 const teamLabel = (team) => team ? `${flagOf(team)} ${team}` : "—";
 
-const SCORING = { reachedR32:1, reachedR16:2, reachedR8:3, reachedSemifinal:4, wonThirdPlace:2, reachedFinal:5, champion:6 };
+const SCORING = {
+  reachedR32: 4,
+  reachedR16: 8,
+  reachedR8: 12,
+  reachedSemifinal: 16,
+  wonThirdPlace: 8,
+  reachedFinal: 20,
+  champion: 24
+};
+
+const POT_MULTIPLIER = {
+  1: 1.00,
+  2: 1.25,
+  3: 1.75
+};
+
 const ENTRY_FEE = 500;
 const NUM_PARTICIPANTS = 16;
 const IS_OFFICIAL_DRAW = false;
@@ -85,19 +100,33 @@ const RANKING_SOURCE_URL = "https://inside.fifa.com/fifa-world-ranking/men";
 
 const fmtMXN = (n) => new Intl.NumberFormat("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0}).format(n||0);
 
-function makeTeam(name, pot){return {team:name,pot,reachedR32:false,reachedR16:false,reachedR8:false,reachedSemifinal:false,wonThirdPlace:false,reachedFinal:false,champion:false};}
+function teamPot(t){
+  if(!t) return 1;
+  if(t.pot) return Number(t.pot);
+  if(BOMBO_1.includes(t.team)) return 1;
+  if(BOMBO_2.includes(t.team)) return 2;
+  if(BOMBO_3.includes(t.team)) return 3;
+  return 1;
+}
+
+function teamMultiplier(t){
+  return POT_MULTIPLIER[teamPot(t)] || 1;
+}
 
 function teamPoints(t){
   if(!t) return 0;
-  let p=0;
-  if(t.reachedR32)p+=SCORING.reachedR32;
-  if(t.reachedR16)p+=SCORING.reachedR16;
-  if(t.reachedR8)p+=SCORING.reachedR8;
-  if(t.reachedSemifinal)p+=SCORING.reachedSemifinal;
-  if(t.wonThirdPlace)p+=SCORING.wonThirdPlace;
-  if(t.reachedFinal)p+=SCORING.reachedFinal;
-  if(t.champion)p+=SCORING.champion;
-  return p;
+
+  let base = 0;
+
+  if(t.reachedR32) base += SCORING.reachedR32;
+  if(t.reachedR16) base += SCORING.reachedR16;
+  if(t.reachedR8) base += SCORING.reachedR8;
+  if(t.reachedSemifinal) base += SCORING.reachedSemifinal;
+  if(t.wonThirdPlace) base += SCORING.wonThirdPlace;
+  if(t.reachedFinal) base += SCORING.reachedFinal;
+  if(t.champion) base += SCORING.champion;
+
+  return Math.round(base * teamMultiplier(t));
 }
 
 function teamStageRank(t){
@@ -1306,13 +1335,24 @@ useEffect(()=>{
               <div>
                 <h3 className="text-stone-900 font-semibold mb-2">Puntos por avance</h3>
                 <div className="rounded-lg ring-1 ring-stone-100 overflow-hidden">
-                  {[["Ronda de 32","+1"],["Octavos","+2"],["Cuartos","+3"],["Semifinal","+4"],["Gana 3° lugar","+2"],["Final","+5"],["Campeón","+6"]].map(([k,v],i)=>(
+                  {[
+                    ["Ronda de 32","+4","+5","+7"],
+                    ["Octavos","+8","+10","+14"],
+                    ["Cuartos","+12","+15","+21"],
+                    ["Semifinal","+16","+20","+28"],
+                    ["Gana 3° lugar","+8","+10","+14"],
+                    ["Final","+20","+25","+35"],
+                    ["Campeón","+24","+30","+42"]
+                  ].map(([k,b1,b2,b3],i)=>(
                     <div key={k} className={`flex justify-between px-3 py-1.5 text-sm ${i%2?"bg-stone-50/50":""}`}>
-                      <span>{k}</span><span className="font-semibold tabular-nums text-stone-800">{v}</span>
+                      <span>{k}</span>
+                      <span className="font-semibold tabular-nums text-stone-800">
+                        B1 {b1} · B2 {b2} · B3 {b3}
+                      </span>
                     </div>
                   ))}
                 </div>
-                <p className="text-stone-400 text-xs mt-2">Los puntos son acumulativos: un equipo que llega a cuartos suma 1+2+3 = 6. No hay puntos por victorias, goles ni resultados de grupos. El total de cada persona es la suma de sus tres equipos.</p>
+                <p className="text-stone-400 text-xs mt-2">Los puntos son acumulativos y se ajustan según el bombo del equipo. Bombo 1 vale 1.00x, Bombo 2 vale 1.25x y Bombo 3 vale 1.75x. No hay puntos por victorias, goles ni resultados de grupos. El total de cada persona es la suma de los puntos ajustados de sus tres equipos.</p>
               </div>
 
               <div>
