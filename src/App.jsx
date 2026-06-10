@@ -1332,25 +1332,37 @@ useEffect(()=>{
                 </a>
               </div>
 
-              <div>
-                <h3 className="text-stone-900 font-semibold mb-2">Puntos por avance</h3>
-                <div className="rounded-lg ring-1 ring-stone-100 overflow-hidden">
-                  {[
-                    ["Ronda de 32","+4","+5","+7"],
-                    ["Octavos","+8","+10","+14"],
-                    ["Cuartos","+12","+15","+21"],
-                    ["Semifinal","+16","+20","+28"],
-                    ["Gana 3° lugar","+8","+10","+14"],
-                    ["Final","+20","+25","+35"],
-                    ["Campeón","+24","+30","+42"]
-                  ].map(([k,b1,b2,b3],i)=>(
-                    <div key={k} className={`flex justify-between px-3 py-1.5 text-sm ${i%2?"bg-stone-50/50":""}`}>
-                      <span>{k}</span>
-                      <span className="font-semibold tabular-nums text-stone-800">
-                        B1 {b1} · B2 {b2} · B3 {b3}
-                      </span>
+                <div>
+                  <h3 className="text-stone-900 font-semibold mb-2">Puntos por avance</h3>
+                
+                  <div className="rounded-lg ring-1 ring-stone-100 overflow-hidden">
+                    <div className="grid grid-cols-[1.5fr_0.7fr_0.7fr_0.7fr] px-3 py-2 text-xs font-semibold text-stone-500 bg-stone-50">
+                      <span>Ronda</span>
+                      <span className="text-right">B1</span>
+                      <span className="text-right">B2</span>
+                      <span className="text-right">B3</span>
                     </div>
-                  ))}
+                
+                    {[
+                      ["Ronda de 32","+4","+5","+7"],
+                      ["Octavos","+8","+10","+14"],
+                      ["Cuartos","+12","+15","+21"],
+                      ["Semifinal","+16","+20","+28"],
+                      ["Gana 3° lugar","+8","+10","+14"],
+                      ["Final","+20","+25","+35"],
+                      ["Campeón","+24","+30","+42"]
+                    ].map(([k,b1,b2,b3],i)=>(
+                      <div
+                        key={k}
+                        className={`grid grid-cols-[1.5fr_0.7fr_0.7fr_0.7fr] px-3 py-1.5 text-sm ${i%2?"bg-stone-50/50":""}`}
+                      >
+                        <span>{k}</span>
+                        <span className="font-semibold tabular-nums text-stone-800 text-right">{b1}</span>
+                        <span className="font-semibold tabular-nums text-stone-800 text-right">{b2}</span>
+                        <span className="font-semibold tabular-nums text-stone-800 text-right">{b3}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <p className="text-stone-400 text-xs mt-2">Los puntos son acumulativos y se ajustan según el bombo del equipo. Bombo 1 vale 1.00x, Bombo 2 vale 1.25x y Bombo 3 vale 1.75x. No hay puntos por victorias, goles ni resultados de grupos. El total de cada persona es la suma de los puntos ajustados de sus tres equipos.</p>
               </div>
