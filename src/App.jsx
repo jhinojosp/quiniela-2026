@@ -1295,99 +1295,127 @@ useEffect(()=>{
         )}
 
         {tab==="reglas" && (
-          <section className="bg-white rounded-xl ring-1 ring-stone-200/70 p-5 sm:p-7">
-            <article className="space-y-6 text-sm leading-relaxed text-stone-600">
-              <div>
-                <h2 className="text-lg font-semibold text-stone-900 tracking-tight">Reglas</h2>
-                <p className="text-stone-400 text-xs mt-0.5">Quiniela Mundial 2026</p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[["Entrada",fmtMXN(ENTRY_FEE)],["Participantes",String(NUM_PARTICIPANTS)],["Bolsa",fmtMXN(totalPool)]].map(([t,v])=>(
-                  <div key={t} className="rounded-lg bg-stone-50 px-3 py-2.5">
-                    <div className="text-[11px] text-stone-400 uppercase tracking-wide">{t}</div>
-                    <div className="font-semibold text-stone-800 mt-0.5">{v}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <h3 className="text-stone-900 font-semibold mb-1.5">Premios</h3>
-                <p>1° lugar {fmtMXN(state.prizes.first)} · 2° lugar {fmtMXN(state.prizes.second)} · 3° lugar {fmtMXN(state.prizes.third)}. Total {fmtMXN(totalPrizes)}.</p>
-              </div>
-
-              <div>
-                <h3 className="text-stone-900 font-semibold mb-1.5">Sorteo</h3>
-                <p>
-                  Participan 48 selecciones divididas en 3 bombos internos de 16, usando como referencia el {RANKING_SOURCE_LABEL} publicado el {RANKING_SOURCE_DATE}. Cada quien recibe tres equipos: uno de cada bombo. Así todos tienen un equipo fuerte, uno medio y uno de menor ranking.
-                </p>
-                
-                <a
-                  href={RANKING_SOURCE_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex mt-2 text-xs font-medium text-stone-700 underline decoration-stone-300 underline-offset-4 hover:text-stone-900"
-                >
-                  Ver ranking oficial FIFA utilizado como referencia
-                </a>
-              </div>
-
-                  <div>
-                    <h3 className="text-stone-900 font-semibold mb-2">Puntos por avance</h3>
-                  
-                    <div className="rounded-lg ring-1 ring-stone-100 overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-stone-50 text-xs font-semibold text-stone-500">
-                          <tr>
-                            <th className="text-left px-3 py-2">Ronda</th>
-                            <th className="text-right px-3 py-2">B1</th>
-                            <th className="text-right px-3 py-2">B2</th>
-                            <th className="text-right px-3 py-2">B3</th>
+          <section className="space-y-4">
+            <article className="rounded-2xl bg-white ring-1 ring-stone-200/70 overflow-hidden">
+              <div className="p-4 sm:p-6 space-y-5">
+                <div>
+                  <h2 className="text-xl font-semibold text-stone-900">Reglas</h2>
+                  <p className="text-sm text-stone-400 mt-1">Quiniela Mundial 2026</p>
+                </div>
+        
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    ["Entrada", fmtMXN(ENTRY_FEE)],
+                    ["Participantes", String(NUM_PARTICIPANTS)],
+                    ["Bolsa", fmtMXN(totalPool)]
+                  ].map(([t,v])=>(
+                    <div key={t} className="rounded-xl bg-stone-50 px-3 py-3">
+                      <p className="text-xs text-stone-400">{t}</p>
+                      <p className="font-semibold text-stone-900">{v}</p>
+                    </div>
+                  ))}
+                </div>
+        
+                <div>
+                  <h3 className="text-stone-900 font-semibold mb-1.5">Premios</h3>
+                  <p className="text-sm text-stone-500">
+                    1° lugar {fmtMXN(state.prizes.first)} · 2° lugar {fmtMXN(state.prizes.second)} · 3° lugar {fmtMXN(state.prizes.third)}. Total {fmtMXN(totalPrizes)}.
+                  </p>
+                </div>
+        
+                <div>
+                  <h3 className="text-stone-900 font-semibold mb-1.5">Sorteo</h3>
+                  <p className="text-sm text-stone-500">
+                    Participan 48 selecciones divididas en 3 bombos internos de 16, usando como referencia el {RANKING_SOURCE_LABEL} publicado el {RANKING_SOURCE_DATE}. Cada quien recibe tres equipos: uno de cada bombo. Así todos tienen un equipo fuerte, uno medio y uno de menor ranking.
+                  </p>
+        
+                  <a
+                    href={RANKING_SOURCE_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex mt-2 text-xs font-medium text-stone-700 underline decoration-stone-300 underline-offset-4 hover:text-stone-900"
+                  >
+                    Ver ranking oficial FIFA utilizado como referencia
+                  </a>
+                </div>
+        
+                <div>
+                  <h3 className="text-stone-900 font-semibold mb-2">Puntos por avance</h3>
+        
+                  <div className="rounded-lg ring-1 ring-stone-100 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-stone-50 text-xs font-semibold text-stone-500">
+                        <tr>
+                          <th className="text-left px-3 py-2">Ronda</th>
+                          <th className="text-right px-3 py-2">B1</th>
+                          <th className="text-right px-3 py-2">B2</th>
+                          <th className="text-right px-3 py-2">B3</th>
+                        </tr>
+                      </thead>
+        
+                      <tbody>
+                        {[
+                          ["Ronda de 32","+4","+5","+7"],
+                          ["Octavos","+8","+10","+14"],
+                          ["Cuartos","+12","+15","+21"],
+                          ["Semifinal","+16","+20","+28"],
+                          ["Gana 3° lugar","+8","+10","+14"],
+                          ["Final","+20","+25","+35"],
+                          ["Campeón","+24","+30","+42"]
+                        ].map(([k,b1,b2,b3],i)=>(
+                          <tr key={k} className={i%2 ? "bg-stone-50/50" : ""}>
+                            <td className="px-3 py-1.5 text-stone-700">{k}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-stone-800">{b1}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-stone-800">{b2}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-stone-800">{b3}</td>
                           </tr>
-                        </thead>
-                  
-                        <tbody>
-                          {[
-                            ["Ronda de 32","+4","+5","+7"],
-                            ["Octavos","+8","+10","+14"],
-                            ["Cuartos","+12","+15","+21"],
-                            ["Semifinal","+16","+20","+28"],
-                            ["Gana 3° lugar","+8","+10","+14"],
-                            ["Final","+20","+25","+35"],
-                            ["Campeón","+24","+30","+42"]
-                          ].map(([k,b1,b2,b3],i)=>(
-                            <tr key={k} className={i%2 ? "bg-stone-50/50" : ""}>
-                              <td className="px-3 py-1.5 text-stone-700">{k}</td>
-                              <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-stone-800">{b1}</td>
-                              <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-stone-800">{b2}</td>
-                              <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-stone-800">{b3}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                <p className="text-stone-400 text-xs mt-2">Los puntos son acumulativos y se ajustan según el bombo del equipo. Bombo 1 vale 1.00x, Bombo 2 vale 1.25x y Bombo 3 vale 1.75x. No hay puntos por victorias, goles ni resultados de grupos. El total de cada persona es la suma de los puntos ajustados de sus tres equipos.</p>
-              </div>
-
-              <div>
-                <h3 className="text-stone-900 font-semibold mb-1.5">Desempates</h3>
-                <ol className="space-y-1">
-                  {["Gana quien tenga el equipo que llegó más lejos.","Si sigue el empate, se compara el segundo mejor equipo.","Luego el tercer equipo.","Si persiste, el premio se reparte entre los empatados."].map((t,i)=>(
-                    <li key={i} className="flex gap-2"><span className="text-stone-300 tabular-nums">{i+1}.</span><span>{t}</span></li>
-                  ))}
-                </ol>
-              </div>
-
-              <div>
-                <h3 className="text-stone-900 font-semibold mb-2">Bombos</h3>
-                <div className="space-y-2.5">
-                  {[["Bombo 1",BOMBO_1],["Bombo 2",BOMBO_2],["Bombo 3",BOMBO_3]].map(([t,list])=>(
-                    <div key={t}>
-                      <div className="text-xs text-stone-400 mb-1">{t}</div>
-                      <div className="flex flex-wrap gap-1">{list.map(n=><Pill key={n} tone="neutral">{teamLabel(n)}</Pill>)}</div>
-                    </div>
-                  ))}
+        
+                  <p className="text-stone-400 text-xs mt-2">
+                    Los puntos son acumulativos y se ajustan según el bombo del equipo. Bombo 1 vale 1.00x, Bombo 2 vale 1.25x y Bombo 3 vale 1.75x. No hay puntos por victorias, goles ni resultados de grupos. El total de cada persona es la suma de los puntos ajustados de sus tres equipos.
+                  </p>
+                </div>
+        
+                <div>
+                  <h3 className="text-stone-900 font-semibold mb-1.5">Desempates</h3>
+                  <ol className="space-y-1">
+                    {[
+                      "Gana quien tenga el equipo que llegó más lejos.",
+                      "Si sigue el empate, se compara el segundo mejor equipo.",
+                      "Luego el tercer equipo.",
+                      "Si persiste, el premio se reparte entre los empatados."
+                    ].map((t,i)=>(
+                      <li key={i} className="flex gap-2 text-sm text-stone-500">
+                        <span className="text-stone-300 tabular-nums">{i+1}.</span>
+                        <span>{t}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+        
+                <div>
+                  <h3 className="text-stone-900 font-semibold mb-2">Bombos</h3>
+                  <div className="grid md:grid-cols-3 gap-3">
+                    {[
+                      ["Bombo 1", BOMBO_1],
+                      ["Bombo 2", BOMBO_2],
+                      ["Bombo 3", BOMBO_3]
+                    ].map(([t,list])=>(
+                      <div key={t} className="rounded-xl bg-stone-50 p-3">
+                        <p className="font-semibold text-stone-800 mb-2">{t}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {list.map(n=>(
+                            <span key={n} className="px-2 py-1 rounded-md bg-white ring-1 ring-stone-100 text-xs text-stone-600">
+                              {teamLabel(n)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </article>
