@@ -72,8 +72,66 @@ const FLAGS = {
   "Nueva Zelanda":"🇳🇿"
 };
 
+const FIFA_RANK = {
+  "Francia": 1,
+  "España": 2,
+  "Argentina": 3,
+  "Inglaterra": 4,
+  "Portugal": 5,
+  "Brasil": 6,
+  "Países Bajos": 7,
+  "Marruecos": 8,
+  "Bélgica": 9,
+  "Alemania": 10,
+  "Croacia": 11,
+  "Colombia": 13,
+  "Senegal": 14,
+  "México": 15,
+  "Estados Unidos": 16,
+  "Uruguay": 17,
+
+  "Japón": 18,
+  "Suiza": 19,
+  "Irán": 21,
+  "Turquía": 22,
+  "Ecuador": 23,
+  "Austria": 24,
+  "Corea del Sur": 25,
+  "Australia": 27,
+  "Argelia": 28,
+  "Egipto": 29,
+  "Canadá": 30,
+  "Noruega": 31,
+  "Panamá": 33,
+  "Costa de Marfil": 34,
+  "Suecia": 38,
+  "Paraguay": 40,
+
+  "República Checa": 41,
+  "Escocia": 43,
+  "Túnez": 44,
+  "RD Congo": 46,
+  "Uzbekistán": 50,
+  "Qatar": 55,
+  "Irak": 57,
+  "Sudáfrica": 60,
+  "Arabia Saudita": 61,
+  "Jordania": 63,
+  "Bosnia y Herzegovina": 65,
+  "Cabo Verde": 69,
+  "Ghana": 74,
+  "Curazao": 82,
+  "Haití": 83,
+  "Nueva Zelanda": 85
+};
+
 const flagOf = (team) => FLAGS[team] || "🏳️";
 const teamLabel = (team) => team ? `${flagOf(team)} ${team}` : "—";
+function teamRankingLabel(team){
+  const rank = FIFA_RANK[team];
+  return `${teamLabel(team)}${rank ? ` (#${rank})` : ""}`;
+}
+
 
 const SCORING = {
   reachedR32: 4,
@@ -1398,6 +1456,9 @@ useEffect(()=>{
         
                 <div>
                   <h3 className="text-stone-900 font-semibold mb-2">Bombos</h3>
+                  <p className="text-xs text-stone-400 mb-3">
+                    El número entre paréntesis corresponde al ranking FIFA/Coca-Cola publicado el {RANKING_SOURCE_DATE}. Los bombos son internos de la quiniela y no corresponden a los bombos oficiales del sorteo FIFA.
+                  </p>
                   <div className="grid md:grid-cols-3 gap-3">
                     {[
                       ["Bombo 1", BOMBO_1],
@@ -1409,7 +1470,7 @@ useEffect(()=>{
                         <div className="flex flex-wrap gap-1">
                           {list.map(n=>(
                             <span key={n} className="px-2 py-1 rounded-md bg-white ring-1 ring-stone-100 text-xs text-stone-600">
-                              {teamLabel(n)}
+                              {teamRankingLabel(n)}
                             </span>
                           ))}
                         </div>
