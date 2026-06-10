@@ -1367,7 +1367,6 @@ useEffect(()=>{
                       </table>
                     </div>
                   </div>
-                </div>
                 <p className="text-stone-400 text-xs mt-2">Los puntos son acumulativos y se ajustan según el bombo del equipo. Bombo 1 vale 1.00x, Bombo 2 vale 1.25x y Bombo 3 vale 1.75x. No hay puntos por victorias, goles ni resultados de grupos. El total de cada persona es la suma de los puntos ajustados de sus tres equipos.</p>
               </div>
 
