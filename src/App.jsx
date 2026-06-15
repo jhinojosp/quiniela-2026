@@ -880,11 +880,9 @@ useEffect(()=>{
   const lastUpdatedLabel=state.lastUpdated?new Date(state.lastUpdated).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Sin actualizaciones";
   const hasAssignedTeams = state.participants.some(p => p.b1 || p.b2 || p.b3);
   const drawLocked = !!state.drawLocked;
-  const displayedMatches = useMemo(()=>{
-    return sortMatchesChronologically(
-      matches.filter((m)=>matchFilter==="todos" || matchBucket(m.round)===matchFilter)
-    );
-  },[matches, matchFilter]);
+  const displayedMatches = sortMatchesChronologically(
+    matches.filter((m)=>matchFilter==="todos" || matchBucket(m.round)===matchFilter)
+  );
   
   const sourceName =
     state.source === "openfootball" ? "OpenFootball" :
