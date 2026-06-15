@@ -1,5 +1,4 @@
-const OPENFOOTBALL_URL =
-  "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json";
+const OPENFOOTBALL_URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json";
 
 const TEAM_NAME_MAP = {
   Mexico: "México",
@@ -50,6 +49,9 @@ const TEAM_NAME_MAP = {
   "Saudi Arabia": "Arabia Saudita",
   Jordan: "Jordania",
   "Bosnia and Herzegovina": "Bosnia y Herzegovina",
+  "Bosnia-Herzegovina": "Bosnia y Herzegovina",
+  "Bosnia & Herzegovina": "Bosnia y Herzegovina",
+  Bosnia: "Bosnia y Herzegovina",
   "Cape Verde": "Cabo Verde",
   Ghana: "Ghana",
   Curaçao: "Curazao",
@@ -69,7 +71,7 @@ function blankProgress() {
   return {
     groupWins: 0,
     groupDraws: 0,
-    groupLosses: 0
+    groupLosses: 0,
     reachedR32: false,
     reachedR16: false,
     reachedR8: false,
@@ -133,24 +135,48 @@ function normalizeProgress(p) {
   return p;
 }
 
+function toNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function getScorePair(match) {
-  if (Number.isFinite(match.score1) && Number.isFinite(match.score2)) {
-    return [match.score1, match.score2];
-  }
+  try {
+    if (Number.isFinite(match.score1) && Number.isFinite(match.score2)) {
+      return [match.score1, match.score2];
+    }
 
-  if (Number.isFinite(match.goals1) && Number.isFinite(match.goals2)) {
-    return [match.goals1, match.goals2];
-  }
+    if (Number.isFinite(match.goals1) && Number.isFinite(match.goals2)) {
+      return [match.goals1, match.goals2];
+    }
 
-  if (Array.isArray(match.score) && match.score.length >= 2) {
-    return [Number(match.score[0]), Number(match.score[1])];
-  }
+    if (Array.isArray(match.score) && match.score.length >= 2) {
+      const a = toNumber(match.score[0]);
+      const b = toNumber(match.score[1]);
+      return a === null || b === null ? null : [a, b];
+    }
 
-  if (match.score?.ft && Array.isArray(match.score.ft) && match.score.ft.length >= 2) {
-    return [Number(match.score.ft[0]), Number(match.score.ft[1])];
-  }
+    if (match.score && Array.isArray(match.score.ft) && match.score.ft.length >= 2) {
+      const a = toNumber(match.score.ft[0]);
+      const b = toNumber(match.score.ft[1]);
+      return a === null || b === null ? null : [a, b];
+    }
 
-  return null;
+    if (match.score && Array.isArray(match.score.fulltime) && match.score.fulltime.length >= 2) {
+      const a = toNumber(match.score.fulltime[0]);
+      const b = toNumber(match.score.fulltime[1]);
+      return a === null || b === null ? null : [a, b];
+    }
+
+    if (typeof match.score === "string") {
+      const parts = match.score.match(/(\d+)\s*[-:]\s*(\d+)/);
+      if (parts) return [Number(parts[1]), Number(parts[2])];
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 function getWinner(match) {
@@ -162,7 +188,6 @@ function getWinner(match) {
 
   const [s1, s2] = score;
 
-  if (!Number.isFinite(s1) || !Number.isFinite(s2)) return null;
   if (s1 > s2) return t1;
   if (s2 > s1) return t2;
 
@@ -183,8 +208,6 @@ function applyGroupRecord(progress, match) {
 
   const [s1, s2] = score;
 
-  if (!Number.isFinite(s1) || !Number.isFinite(s2)) return;
-
   const p1 = ensure(progress, t1);
   const p2 = ensure(progress, t2);
 
@@ -204,6 +227,7 @@ function applyGroupRecord(progress, match) {
 
 function applyRoundProgress(progress, match) {
   const round = String(match.round || "").toLowerCase();
+
   const t1 = translateTeam(match.team1);
   const t2 = translateTeam(match.team2);
 
@@ -268,12 +292,19 @@ export default async function handler(req, res) {
 
     const progress = {};
     let completedWithScore = 0;
+    let processingErrors = 0;
 
     for (const match of matches) {
-      if (getScorePair(match)) completedWithScore += 1;
-    
-      applyGroupRecord(progress, match);
-      applyRoundProgress(progress, match);
+      const score = getScorePair(match);
+
+      if (score) completedWithScore += 1;
+
+      try {
+        applyGroupRecord(progress, match);
+        applyRoundProgress(progress, match);
+      } catch {
+        processingErrors += 1;
+      }
     }
 
     for (const team of Object.keys(progress)) {
@@ -286,11 +317,12 @@ export default async function handler(req, res) {
       tournament: data.name || "World Cup 2026",
       matchCount: matches.length,
       completedWithScore,
+      processingErrors,
       progress,
       note:
         completedWithScore === 0
           ? "OpenFootball currently has schedule data but no scores detected."
-          : "Progress derived from OpenFootball match data."
+          : "Progress and group records derived from OpenFootball match data."
     });
   } catch (error) {
     return res.status(500).json({
