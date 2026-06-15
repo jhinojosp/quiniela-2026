@@ -536,23 +536,68 @@ function formatCDMXTime(match){
     minute: "2-digit"
   }).format(d);
 }
-
 function matchScore(match){
-  if(Number.isFinite(match.score1) && Number.isFinite(match.score2)){
-    return `${match.score1} - ${match.score2}`;
-  }
+  const score = getMatchScorePair(match);
 
-  if(Number.isFinite(match.goals1) && Number.isFinite(match.goals2)){
-    return `${match.goals1} - ${match.goals2}`;
-  }
-
-  if(Array.isArray(match.score) && match.score.length >= 2){
-    return `${match.score[0]} - ${match.score[1]}`;
+  if(score){
+    return `${score[0]} - ${score[1]}`;
   }
 
   return "vs";
 }
 
+function getMatchScorePair(match){
+  if(Number.isFinite(match.score1) && Number.isFinite(match.score2)){
+    return [match.score1, match.score2];
+  }
+
+  if(Number.isFinite(match.goals1) && Number.isFinite(match.goals2)){
+    return [match.goals1, match.goals2];
+  }
+
+  if(Array.isArray(match.score) && match.score.length >= 2){
+    const a = Number(match.score[0]);
+    const b = Number(match.score[1]);
+    if(Number.isFinite(a) && Number.isFinite(b)) return [a,b];
+  }
+
+  if(match.score && Array.isArray(match.score.ft) && match.score.ft.length >= 2){
+    const a = Number(match.score.ft[0]);
+    const b = Number(match.score.ft[1]);
+    if(Number.isFinite(a) && Number.isFinite(b)) return [a,b];
+  }
+
+  if(match.score && Array.isArray(match.score.fulltime) && match.score.fulltime.length >= 2){
+    const a = Number(match.score.fulltime[0]);
+    const b = Number(match.score.fulltime[1]);
+    if(Number.isFinite(a) && Number.isFinite(b)) return [a,b];
+  }
+
+  if(typeof match.score === "string"){
+    const parts = match.score.match(/(\d+)\s*[-:]\s*(\d+)/);
+    if(parts) return [Number(parts[1]), Number(parts[2])];
+  }
+
+  return null;
+}
+function sortMatchesChronologically(list){
+  return [...list].sort((a,b)=>{
+    const da = parseOpenFootballDate(a);
+    const db = parseOpenFootballDate(b);
+
+    if(da && db) return da.getTime() - db.getTime();
+    if(da && !db) return -1;
+    if(!da && db) return 1;
+
+    const dateCompare = String(a.date || "").localeCompare(String(b.date || ""));
+    if(dateCompare !== 0) return dateCompare;
+
+    const timeCompare = String(a.time || "").localeCompare(String(b.time || ""));
+    if(timeCompare !== 0) return timeCompare;
+
+    return (Number(a.num) || 0) - (Number(b.num) || 0);
+  });
+}
 function matchBucket(round){
   const r = String(round || "").toLowerCase();
 
@@ -733,7 +778,7 @@ export default function App(){
       .subscribe();
     return ()=>{ active=false; supabase.removeChannel(channel); };
   },[]);
-
+  
 useEffect(() => {
   let mounted = true;
 
@@ -787,7 +832,23 @@ useEffect(()=>{
     active = false;
   };
 },[]);
-
+  
+  const refreshMatches=async()=>{
+    setMatchesLoading(true);
+  
+    try {
+      const response = await fetch("/api/openfootball-worldcup");
+      const data = await response.json();
+  
+      if(!response.ok) throw new Error(data.error || "No se pudieron cargar partidos.");
+  
+      setMatches(data?.data?.matches || []);
+    } catch(e) {
+      setError("No se pudieron cargar partidos de OpenFootball: " + (e.message || ""));
+    } finally {
+      setMatchesLoading(false);
+    }
+  };
   const persist=useCallback(async(next)=>{
     setSaving(true);
     try{
@@ -819,7 +880,12 @@ useEffect(()=>{
   const lastUpdatedLabel=state.lastUpdated?new Date(state.lastUpdated).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"Sin actualizaciones";
   const hasAssignedTeams = state.participants.some(p => p.b1 || p.b2 || p.b3);
   const drawLocked = !!state.drawLocked;
-
+  const displayedMatches = useMemo(()=>{
+    return sortMatchesChronologically(
+      matches.filter((m)=>matchFilter==="todos" || matchBucket(m.round)===matchFilter)
+    );
+  },[matches, matchFilter]);
+  
   const sourceName =
     state.source === "openfootball" ? "OpenFootball" :
     state.source === "api" ? "API externa" :
@@ -1322,10 +1388,19 @@ useEffect(()=>{
                   Horarios en hora de Ciudad de México. Fuente: OpenFootball.
                 </p>
               </div>
-        
-              <span className="text-[11px] text-stone-400">
-                {matchesLoading ? "Cargando…" : `${matches.length} partidos`}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={refreshMatches}
+                  disabled={matchesLoading}
+                  className="px-2.5 py-1 rounded-lg bg-white text-stone-600 text-xs font-medium ring-1 ring-stone-200 hover:bg-stone-50 disabled:opacity-40"
+                >
+                  {matchesLoading ? "Actualizando…" : "Actualizar partidos"}
+                </button>
+              
+                <span className="text-[11px] text-stone-400">
+                  {matchesLoading ? "Cargando…" : `${matches.length} partidos`}
+                </span>
+              </div>
             </div>
         
             <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -1352,9 +1427,7 @@ useEffect(()=>{
             </div>
         
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
-              {matches
-                .filter((m)=>matchFilter==="todos" || matchBucket(m.round)===matchFilter)
-                .map((m,idx)=>(
+              {displayedMatches.map((m,idx)=>(
                   <div key={`${m.num || idx}-${m.date}-${m.team1}-${m.team2}`} className="px-3 sm:px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -1381,7 +1454,7 @@ useEffect(()=>{
                   </div>
                 ))}
         
-              {!matchesLoading && matches.filter((m)=>matchFilter==="todos" || matchBucket(m.round)===matchFilter).length===0 && (
+              {!matchesLoading && displayedMatches.length===0 && (
                 <div className="px-4 py-8 text-center text-sm text-stone-400">
                   No hay partidos para este filtro.
                 </div>
