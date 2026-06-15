@@ -67,6 +67,9 @@ function translateTeam(name) {
 
 function blankProgress() {
   return {
+    groupWins: 0,
+    groupDraws: 0,
+    groupLosses: 0
     reachedR32: false,
     reachedR16: false,
     reachedR8: false,
@@ -166,6 +169,39 @@ function getWinner(match) {
   return null;
 }
 
+function applyGroupRecord(progress, match) {
+  const round = String(match.round || "").toLowerCase();
+  const isGroupMatch = Boolean(match.group) || round.includes("matchday");
+
+  if (!isGroupMatch) return;
+
+  const t1 = translateTeam(match.team1);
+  const t2 = translateTeam(match.team2);
+  const score = getScorePair(match);
+
+  if (!t1 || !t2 || !score) return;
+
+  const [s1, s2] = score;
+
+  if (!Number.isFinite(s1) || !Number.isFinite(s2)) return;
+
+  const p1 = ensure(progress, t1);
+  const p2 = ensure(progress, t2);
+
+  if (!p1 || !p2) return;
+
+  if (s1 > s2) {
+    p1.groupWins += 1;
+    p2.groupLosses += 1;
+  } else if (s2 > s1) {
+    p2.groupWins += 1;
+    p1.groupLosses += 1;
+  } else {
+    p1.groupDraws += 1;
+    p2.groupDraws += 1;
+  }
+}
+
 function applyRoundProgress(progress, match) {
   const round = String(match.round || "").toLowerCase();
   const t1 = translateTeam(match.team1);
@@ -235,6 +271,8 @@ export default async function handler(req, res) {
 
     for (const match of matches) {
       if (getScorePair(match)) completedWithScore += 1;
+    
+      applyGroupRecord(progress, match);
       applyRoundProgress(progress, match);
     }
 
