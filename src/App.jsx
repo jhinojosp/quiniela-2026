@@ -1465,9 +1465,36 @@ useEffect(()=>{
             <p className="text-[11px] text-stone-400">   Los puntos se calculan automáticamente con base en el avance de cada equipo. </p>
           </section>
         )}
+
         {tab==="partidos" && (
-          <section className="space-y-4">
+          <div className="space-y-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <h2 className="text-sm font-semibold">
+                  {matchView==="tabla" ? "Tabla de grupos" : "Calendario y resultados"}
+                </h2>
+                <p className="text-[11px] text-stone-400 mt-0.5">
+                  {matchView==="tabla"
+                    ? "Clasificación del Mundial calculada con marcadores de OpenFootball."
+                    : "Horarios en hora de Ciudad de México. Fuente: OpenFootball."}
+                </p>
+              </div>
+        
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={refreshMatches}
+                  disabled={matchesLoading}
+                  className="px-2.5 py-1 rounded-lg bg-white text-stone-600 text-xs font-medium ring-1 ring-stone-200 hover:bg-stone-50 disabled:opacity-40"
+                >
+                  {matchesLoading ? "Actualizando…" : "Actualizar partidos"}
+                </button>
+        
+                <span className="text-[11px] text-stone-400">
+                  {matchesLoading ? "Cargando…" : `${matches.length} partidos`}
+                </span>
+              </div>
+            </div>
+        
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {[
                 ["calendario","Calendario"],
@@ -1486,151 +1513,140 @@ useEffect(()=>{
                 </button>
               ))}
             </div>
-              <div>
-                <h2 className="text-sm font-semibold">Calendario y resultados</h2>
-                <p className="text-xs text-stone-400 mt-0.5">
-                  Horarios en hora de Ciudad de México. Fuente: OpenFootball.
-                </p>
+        
+            {matchView==="tabla" && (
+              <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden">
+                <div className="px-4 py-3 border-b border-stone-100">
+                  <h2 className="text-sm font-semibold">Tabla de grupos</h2>
+                  <p className="text-[11px] text-stone-400 mt-0.5">
+                    Calculada automáticamente con marcadores de OpenFootball.
+                  </p>
+                </div>
+        
+                {groupTables.length===0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-stone-400">
+                    No se encontraron grupos en los datos de OpenFootball.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-stone-100">
+                    {groupTables.map(({group, rows})=>(
+                      <div key={group} className="p-3">
+                        <h3 className="text-xs font-semibold text-stone-500 mb-2">{group}</h3>
+        
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-stone-400 border-b border-stone-100">
+                                <th className="text-left font-medium px-2 py-1.5">Equipo</th>
+                                <th className="text-center font-medium px-1 py-1.5">PJ</th>
+                                <th className="text-center font-medium px-1 py-1.5">G</th>
+                                <th className="text-center font-medium px-1 py-1.5">E</th>
+                                <th className="text-center font-medium px-1 py-1.5">P</th>
+                                <th className="text-center font-medium px-1 py-1.5">GF</th>
+                                <th className="text-center font-medium px-1 py-1.5">GC</th>
+                                <th className="text-center font-medium px-1 py-1.5">DG</th>
+                                <th className="text-center font-medium px-1 py-1.5">Pts</th>
+                              </tr>
+                            </thead>
+        
+                            <tbody>
+                              {rows.map((row,idx)=>(
+                                <tr key={row.team} className={idx < 2 ? "bg-emerald-50/40" : ""}>
+                                  <td className="px-2 py-1.5 whitespace-nowrap">
+                                    <span className="font-medium text-stone-700">{teamLabel(row.team)}</span>
+                                  </td>
+                                  <td className="text-center px-1 py-1.5 tabular-nums">{row.played}</td>
+                                  <td className="text-center px-1 py-1.5 tabular-nums">{row.wins}</td>
+                                  <td className="text-center px-1 py-1.5 tabular-nums">{row.draws}</td>
+                                  <td className="text-center px-1 py-1.5 tabular-nums">{row.losses}</td>
+                                  <td className="text-center px-1 py-1.5 tabular-nums">{row.goalsFor}</td>
+                                  <td className="text-center px-1 py-1.5 tabular-nums">{row.goalsAgainst}</td>
+                                  <td className="text-center px-1 py-1.5 tabular-nums">
+                                    {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
+                                  </td>
+                                  <td className="text-center px-1 py-1.5 tabular-nums font-semibold text-stone-900">
+                                    {row.points}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={refreshMatches}
-                  disabled={matchesLoading}
-                  className="px-2.5 py-1 rounded-lg bg-white text-stone-600 text-xs font-medium ring-1 ring-stone-200 hover:bg-stone-50 disabled:opacity-40"
-                >
-                  {matchesLoading ? "Actualizando…" : "Actualizar partidos"}
-                </button>
-              
-                <span className="text-[11px] text-stone-400">
-                  {matchesLoading ? "Cargando…" : `${matches.length} partidos`}
-                </span>
-              </div>
-            </div>
+            )}
+        
             {matchView==="calendario" && (
               <>
-              <div className="flex gap-1.5 overflow-x-auto pb-1">
-                {[
-                  ["todos","Todos"],
-                  ["grupos","Grupos"],
-                  ["r32","R32"],
-                  ["r16","Octavos"],
-                  ["cuartos","Cuartos"],
-                  ["finales","Semis / Final"]
-                ].map(([key,label])=>(
-                  <button
-                    key={key}
-                    onClick={()=>setMatchFilter(key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
-                      matchFilter===key
-                        ? "bg-white text-stone-900 shadow-sm ring-1 ring-stone-200/70"
-                        : "text-stone-400 hover:text-stone-600"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {matchView==="tabla" && (
-              <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden">
-                <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between gap-2">
-                  <div>
-                    <h2 className="text-sm font-semibold">Tabla de grupos</h2>
-                    <p className="text-[11px] text-stone-400 mt-0.5">
-                      Calculada automáticamente con marcadores de OpenFootball.
-                    </p>
-                  </div>
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {[
+                    ["todos","Todos"],
+                    ["grupos","Grupos"],
+                    ["r32","R32"],
+                    ["r16","Octavos"],
+                    ["cuartos","Cuartos"],
+                    ["finales","Semis / Final"]
+                  ].map(([key,label])=>(
+                    <button
+                      key={key}
+                      onClick={()=>setMatchFilter(key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                        matchFilter===key
+                          ? "bg-white text-stone-900 shadow-sm ring-1 ring-stone-200/70"
+                          : "text-stone-400 hover:text-stone-600"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-              
-                <div className="divide-y divide-stone-100">
-                  {groupTables.map(({group, rows})=>(
-                    <div key={group} className="p-3">
-                      <h3 className="text-xs font-semibold text-stone-500 mb-2">{group}</h3>
-              
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="text-stone-400 border-b border-stone-100">
-                              <th className="text-left font-medium px-2 py-1.5">Equipo</th>
-                              <th className="text-center font-medium px-1 py-1.5">PJ</th>
-                              <th className="text-center font-medium px-1 py-1.5">G</th>
-                              <th className="text-center font-medium px-1 py-1.5">E</th>
-                              <th className="text-center font-medium px-1 py-1.5">P</th>
-                              <th className="text-center font-medium px-1 py-1.5">GF</th>
-                              <th className="text-center font-medium px-1 py-1.5">GC</th>
-                              <th className="text-center font-medium px-1 py-1.5">DG</th>
-                              <th className="text-center font-medium px-1 py-1.5">Pts</th>
-                            </tr>
-                          </thead>
-              
-                          <tbody>
-                            {rows.map((row,idx)=>(
-                              <tr key={row.team} className={idx < 2 ? "bg-emerald-50/40" : ""}>
-                                <td className="px-2 py-1.5 whitespace-nowrap">
-                                  <span className="font-medium text-stone-700">{teamLabel(row.team)}</span>
-                                </td>
-                                <td className="text-center px-1 py-1.5 tabular-nums">{row.played}</td>
-                                <td className="text-center px-1 py-1.5 tabular-nums">{row.wins}</td>
-                                <td className="text-center px-1 py-1.5 tabular-nums">{row.draws}</td>
-                                <td className="text-center px-1 py-1.5 tabular-nums">{row.losses}</td>
-                                <td className="text-center px-1 py-1.5 tabular-nums">{row.goalsFor}</td>
-                                <td className="text-center px-1 py-1.5 tabular-nums">{row.goalsAgainst}</td>
-                                <td className="text-center px-1 py-1.5 tabular-nums">
-                                  {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
-                                </td>
-                                <td className="text-center px-1 py-1.5 tabular-nums font-semibold text-stone-900">{row.points}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+        
+                <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
+                  {displayedMatches.map((m,idx)=>(
+                    <div key={`${m.date}-${m.num || idx}`} className="px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-[11px] text-stone-400 mb-1">
+                          <span>{m.round || "—"}</span>
+                          {m.group && <span>{m.group}</span>}
+                          {m.num && <span>Partido {m.num}</span>}
+                        </div>
+        
+                        <div className="text-sm font-medium text-stone-800">
+                          {displayTeam(m.team1)} <span className="text-stone-400 mx-1">{matchScore(m)}</span> {displayTeam(m.team2)}
+                        </div>
+        
+                        <div className="text-[11px] text-stone-400 mt-1">
+                          {m.ground || "Sede por confirmar"}
+                        </div>
+                      </div>
+        
+                      <div className="text-right shrink-0">
+                        <div className="text-xs font-medium text-stone-600">{formatCDMXDate(m)}</div>
+                        <div className="text-[11px] text-stone-400 mt-0.5">{formatCDMXTime(m)}</div>
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>)}
-              <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
-                {displayedMatches.map((m,idx)=>(
-                    <div key={`${m.num || idx}-${m.date}-${m.team1}-${m.team2}`} className="px-3 sm:px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                            <Pill tone="neutral">{m.round || "—"}</Pill>
-                            {m.group && <Pill tone="neutral">{m.group}</Pill>}
-                            {m.num && <span className="text-[11px] text-stone-300">Partido {m.num}</span>}
-                          </div>
-          
-                          <div className="text-sm font-medium text-stone-800">
-                            {displayTeam(m.team1)} <span className="text-stone-300 px-1">{matchScore(m)}</span> {displayTeam(m.team2)}
-                          </div>
-          
-                          <div className="text-xs text-stone-400 mt-1">
-                            {m.ground || "Sede por confirmar"}
-                          </div>
-                        </div>
-          
-                        <div className="text-right shrink-0">
-                          <div className="text-xs font-medium text-stone-700">{formatCDMXDate(m)}</div>
-                          <div className="text-xs text-stone-400 mt-0.5">{formatCDMXTime(m)}</div>
-                        </div>
-                      </div>
+        
+                  {!matchesLoading && displayedMatches.length===0 && (
+                    <div className="px-4 py-8 text-center text-sm text-stone-400">
+                      No hay partidos para este filtro.
                     </div>
-                  ))}
-          
-                {!matchesLoading && displayedMatches.length===0 && (
-                  <div className="px-4 py-8 text-center text-sm text-stone-400">
-                    No hay partidos para este filtro.
-                  </div>
-                )}
-          
-                {matchesLoading && (
-                  <div className="px-4 py-8 text-center text-sm text-stone-400">
-                    Cargando calendario…
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-          </section>
+                  )}
+        
+                  {matchesLoading && (
+                    <div className="px-4 py-8 text-center text-sm text-stone-400">
+                      Cargando calendario…
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         )}
+        
         {tab==="premios" && (
           <section className="space-y-4">
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 p-4 sm:p-5 space-y-3">
