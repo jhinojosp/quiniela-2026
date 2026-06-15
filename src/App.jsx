@@ -567,6 +567,7 @@ function matchBucket(round){
 
 const CHART_PHASES = [
   { key:"start", label:"Inicio" },
+  { key:"groups", label:"Grupos" },
   { key:"r32", label:"R32" },
   { key:"r16", label:"Octavos" },
   { key:"r8", label:"Cuartos" },
@@ -577,17 +578,23 @@ const CHART_PHASES = [
 
 function teamPointsThroughPhase(t, phaseKey){
   if(!t) return 0;
-  let p = 0;
 
-  if(["r32","r16","r8","semi","final","champion"].includes(phaseKey) && t.reachedR32) p += SCORING.reachedR32;
-  if(["r16","r8","semi","final","champion"].includes(phaseKey) && t.reachedR16) p += SCORING.reachedR16;
-  if(["r8","semi","final","champion"].includes(phaseKey) && t.reachedR8) p += SCORING.reachedR8;
-  if(["semi","final","champion"].includes(phaseKey) && t.reachedSemifinal) p += SCORING.reachedSemifinal;
-  if(["final","champion"].includes(phaseKey) && t.wonThirdPlace) p += SCORING.wonThirdPlace;
-  if(["final","champion"].includes(phaseKey) && t.reachedFinal) p += SCORING.reachedFinal;
-  if(phaseKey==="champion" && t.champion) p += SCORING.champion;
+  let base = 0;
 
-  return p;
+  if(["groups","r32","r16","r8","semi","final","champion"].includes(phaseKey)){
+    base += (Number(t.groupWins) || 0) * SCORING.groupWin;
+    base += (Number(t.groupDraws) || 0) * SCORING.groupDraw;
+  }
+
+  if(["r32","r16","r8","semi","final","champion"].includes(phaseKey) && t.reachedR32) base += SCORING.reachedR32;
+  if(["r16","r8","semi","final","champion"].includes(phaseKey) && t.reachedR16) base += SCORING.reachedR16;
+  if(["r8","semi","final","champion"].includes(phaseKey) && t.reachedR8) base += SCORING.reachedR8;
+  if(["semi","final","champion"].includes(phaseKey) && t.reachedSemifinal) base += SCORING.reachedSemifinal;
+  if(["final","champion"].includes(phaseKey) && t.wonThirdPlace) base += SCORING.wonThirdPlace;
+  if(["final","champion"].includes(phaseKey) && t.reachedFinal) base += SCORING.reachedFinal;
+  if(phaseKey==="champion" && t.champion) base += SCORING.champion;
+
+  return Math.round(base * teamMultiplier(t));
 }
 
 function participantPointsThroughPhase(p, teams, phaseKey){
