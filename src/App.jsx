@@ -134,6 +134,8 @@ function teamRankingLabel(team){
 
 
 const SCORING = {
+  groupWin: 3,
+  groupDraw: 1,
   reachedR32: 4,
   reachedR16: 8,
   reachedR8: 12,
@@ -158,6 +160,23 @@ const RANKING_SOURCE_URL = "https://inside.fifa.com/fifa-world-ranking/men";
 
 const fmtMXN = (n) => new Intl.NumberFormat("es-MX",{style:"currency",currency:"MXN",maximumFractionDigits:0}).format(n||0);
 
+function makeTeam(name, pot){
+  return {
+    team: name,
+    pot,
+    groupWins: 0,
+    groupDraws: 0,
+    groupLosses: 0,
+    reachedR32: false,
+    reachedR16: false,
+    reachedR8: false,
+    reachedSemifinal: false,
+    wonThirdPlace: false,
+    reachedFinal: false,
+    champion: false
+  };
+}
+
 function teamPot(t){
   if(!t) return 1;
   if(t.pot) return Number(t.pot);
@@ -175,6 +194,9 @@ function teamPoints(t){
   if(!t) return 0;
 
   let base = 0;
+
+  base += (Number(t.groupWins) || 0) * SCORING.groupWin;
+  base += (Number(t.groupDraws) || 0) * SCORING.groupDraw;
 
   if(t.reachedR32) base += SCORING.reachedR32;
   if(t.reachedR16) base += SCORING.reachedR16;
@@ -1198,6 +1220,9 @@ useEffect(()=>{
                 <table className="w-full text-xs">
                   <thead><tr className="text-stone-400 text-left border-b border-stone-100">
                     <th className="px-3 py-2 font-medium">Equipo</th><th className="px-1 py-2 font-medium text-center">B</th>
+                    <th className="px-1 py-2 font-medium text-center">G</th>
+                    <th className="px-1 py-2 font-medium text-center">E</th>
+                    <th className="px-1 py-2 font-medium text-center">P</th>
                     {[["reachedR32","R32"],["reachedR16","R16"],["reachedR8","R8"],["reachedSemifinal","Sf"],["wonThirdPlace","3°"],["reachedFinal","Fn"],["champion","Cmp"]].map(([k,l])=><th key={k} className="px-1 py-2 font-medium text-center">{l}</th>)}
                     <th className="px-2 py-2 font-medium text-center">Pts</th>
                   </tr></thead>
@@ -1205,6 +1230,47 @@ useEffect(()=>{
                     {Object.values(state.teams).sort((a,b)=>a.pot-b.pot||a.team.localeCompare(b.team)).map(t=>(
                       <tr key={t.team} className="hover:bg-stone-50/60">
                         <td className="px-3 py-1.5 whitespace-nowrap">{teamLabel(t.team)}</td><td className="px-1 py-1.5 text-center text-stone-400">{t.pot}</td>
+                        <td className="px-1 py-1.5 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="3"
+                            value={t.groupWins || 0}
+                            onChange={e=>update(n=>{
+                              n.teams[t.team].groupWins = Number(e.target.value) || 0;
+                              touchUpdated(n);
+                            })}
+                            className="w-10 px-1 py-0.5 rounded-md text-xs text-center bg-stone-50 border border-stone-100"
+                          />
+                        </td>
+                        
+                        <td className="px-1 py-1.5 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="3"
+                            value={t.groupDraws || 0}
+                            onChange={e=>update(n=>{
+                              n.teams[t.team].groupDraws = Number(e.target.value) || 0;
+                              touchUpdated(n);
+                            })}
+                            className="w-10 px-1 py-0.5 rounded-md text-xs text-center bg-stone-50 border border-stone-100"
+                          />
+                        </td>
+                        
+                        <td className="px-1 py-1.5 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="3"
+                            value={t.groupLosses || 0}
+                            onChange={e=>update(n=>{
+                              n.teams[t.team].groupLosses = Number(e.target.value) || 0;
+                              touchUpdated(n);
+                            })}
+                            className="w-10 px-1 py-0.5 rounded-md text-xs text-center bg-stone-50 border border-stone-100"
+                          />
+                        </td>
                         {["reachedR32","reachedR16","reachedR8","reachedSemifinal","wonThirdPlace","reachedFinal","champion"].map(k=>(
                           <td key={k} className="px-1 py-1.5 text-center">
                             <input
@@ -1413,14 +1479,16 @@ useEffect(()=>{
         
                       <tbody>
                         {[
-                          ["Ronda de 32","+4","+5","+7"],
-                          ["Octavos","+8","+10","+14"],
-                          ["Cuartos","+12","+15","+21"],
-                          ["Semifinal","+16","+20","+28"],
-                          ["Gana 3° lugar","+8","+10","+14"],
-                          ["Final","+20","+25","+35"],
-                          ["Campeón","+24","+30","+42"]
-                        ].map(([k,b1,b2,b3],i)=>(
+                            ["Victoria en grupos","+3","+4","+5"],
+                            ["Empate en grupos","+1","+1","+2"],
+                            ["Ronda de 32","+4","+5","+7"],
+                            ["Octavos","+8","+10","+14"],
+                            ["Cuartos","+12","+15","+21"],
+                            ["Semifinal","+16","+20","+28"],
+                            ["Gana 3° lugar","+8","+10","+14"],
+                            ["Final","+20","+25","+35"],
+                            ["Campeón","+24","+30","+42"]
+                          ].map(([k,b1,b2,b3],i)=>(
                           <tr key={k} className={i%2 ? "bg-stone-50/50" : ""}>
                             <td className="px-3 py-1.5 text-stone-700">{k}</td>
                             <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-stone-800">{b1}</td>
@@ -1433,7 +1501,7 @@ useEffect(()=>{
                   </div>
         
                   <p className="text-stone-400 text-xs mt-2">
-                    Los puntos son acumulativos y se ajustan según el bombo del equipo. Bombo 1 vale 1.00x, Bombo 2 vale 1.25x y Bombo 3 vale 1.75x. No hay puntos por victorias, goles ni resultados de grupos. El total de cada persona es la suma de los puntos ajustados de sus tres equipos.
+                    Los equipos suman puntos en fase de grupos usando el sistema FIFA: 3 puntos por victoria, 1 por empate y 0 por derrota. Además, suman puntos acumulativos por avance de ronda. Los puntos totales de cada equipo se ajustan según su bombo: Bombo 1 vale 1.00x, Bombo 2 vale 1.25x y Bombo 3 vale 1.75x. No hay puntos por goles ni diferencia de goles.
                   </p>
                 </div>
         
