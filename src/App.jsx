@@ -598,6 +598,93 @@ function sortMatchesChronologically(list){
     return (Number(a.num) || 0) - (Number(b.num) || 0);
   });
 }
+function buildWorldCupGroupTables(matches){
+  const groups = {};
+
+  const ensureTeam = (group, teamName) => {
+    if(!group || !teamName) return null;
+
+    if(!groups[group]) groups[group] = {};
+
+    if(!groups[group][teamName]){
+      groups[group][teamName] = {
+        team: teamName,
+        played: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDifference: 0,
+        points: 0
+      };
+    }
+
+    return groups[group][teamName];
+  };
+
+  matches.forEach(match=>{
+    if(!match.group) return;
+
+    const score = getMatchScorePair(match);
+    const team1 = TEAM_NAME_MAP[match.team1] || match.team1;
+    const team2 = TEAM_NAME_MAP[match.team2] || match.team2;
+
+    // Crear filas aunque todavía no haya marcador
+    ensureTeam(match.group, team1);
+    ensureTeam(match.group, team2);
+
+    if(!score) return;
+
+    const [s1,s2] = score;
+    const row1 = ensureTeam(match.group, team1);
+    const row2 = ensureTeam(match.group, team2);
+
+    if(!row1 || !row2) return;
+
+    row1.played += 1;
+    row2.played += 1;
+
+    row1.goalsFor += s1;
+    row1.goalsAgainst += s2;
+
+    row2.goalsFor += s2;
+    row2.goalsAgainst += s1;
+
+    if(s1 > s2){
+      row1.wins += 1;
+      row1.points += 3;
+      row2.losses += 1;
+    } else if(s2 > s1){
+      row2.wins += 1;
+      row2.points += 3;
+      row1.losses += 1;
+    } else {
+      row1.draws += 1;
+      row2.draws += 1;
+      row1.points += 1;
+      row2.points += 1;
+    }
+  });
+
+  Object.values(groups).forEach(group=>{
+    Object.values(group).forEach(row=>{
+      row.goalDifference = row.goalsFor - row.goalsAgainst;
+    });
+  });
+
+  return Object.entries(groups)
+    .sort(([a],[b])=>String(a).localeCompare(String(b)))
+    .map(([group, rows])=>({
+      group,
+      rows: Object.values(rows).sort((a,b)=>{
+        if(b.points !== a.points) return b.points - a.points;
+        if(b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        if(b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+        return a.team.localeCompare(b.team);
+      })
+    }));
+}
 function matchBucket(round){
   const r = String(round || "").toLowerCase();
 
@@ -883,6 +970,7 @@ useEffect(()=>{
   const displayedMatches = sortMatchesChronologically(
     matches.filter((m)=>matchFilter==="todos" || matchBucket(m.round)===matchFilter)
   );
+  const groupTables = buildWorldCupGroupTables(matches);
   
   const sourceName =
     state.source === "openfootball" ? "OpenFootball" :
@@ -1423,7 +1511,62 @@ useEffect(()=>{
                 </button>
               ))}
             </div>
-        
+            <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden">
+              <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-semibold">Tabla de grupos</h2>
+                  <p className="text-[11px] text-stone-400 mt-0.5">
+                    Calculada automáticamente con marcadores de OpenFootball.
+                  </p>
+                </div>
+              </div>
+            
+              <div className="divide-y divide-stone-100">
+                {groupTables.map(({group, rows})=>(
+                  <div key={group} className="p-3">
+                    <h3 className="text-xs font-semibold text-stone-500 mb-2">{group}</h3>
+            
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-stone-400 border-b border-stone-100">
+                            <th className="text-left font-medium px-2 py-1.5">Equipo</th>
+                            <th className="text-center font-medium px-1 py-1.5">PJ</th>
+                            <th className="text-center font-medium px-1 py-1.5">G</th>
+                            <th className="text-center font-medium px-1 py-1.5">E</th>
+                            <th className="text-center font-medium px-1 py-1.5">P</th>
+                            <th className="text-center font-medium px-1 py-1.5">GF</th>
+                            <th className="text-center font-medium px-1 py-1.5">GC</th>
+                            <th className="text-center font-medium px-1 py-1.5">DG</th>
+                            <th className="text-center font-medium px-1 py-1.5">Pts</th>
+                          </tr>
+                        </thead>
+            
+                        <tbody>
+                          {rows.map((row,idx)=>(
+                            <tr key={row.team} className={idx < 2 ? "bg-emerald-50/40" : ""}>
+                              <td className="px-2 py-1.5 whitespace-nowrap">
+                                <span className="font-medium text-stone-700">{teamLabel(row.team)}</span>
+                              </td>
+                              <td className="text-center px-1 py-1.5 tabular-nums">{row.played}</td>
+                              <td className="text-center px-1 py-1.5 tabular-nums">{row.wins}</td>
+                              <td className="text-center px-1 py-1.5 tabular-nums">{row.draws}</td>
+                              <td className="text-center px-1 py-1.5 tabular-nums">{row.losses}</td>
+                              <td className="text-center px-1 py-1.5 tabular-nums">{row.goalsFor}</td>
+                              <td className="text-center px-1 py-1.5 tabular-nums">{row.goalsAgainst}</td>
+                              <td className="text-center px-1 py-1.5 tabular-nums">
+                                {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
+                              </td>
+                              <td className="text-center px-1 py-1.5 tabular-nums font-semibold text-stone-900">{row.points}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="bg-white rounded-xl ring-1 ring-stone-200/70 overflow-hidden divide-y divide-stone-50">
               {displayedMatches.map((m,idx)=>(
                   <div key={`${m.num || idx}-${m.date}-${m.team1}-${m.team2}`} className="px-3 sm:px-4 py-3">
